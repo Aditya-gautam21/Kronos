@@ -15,5 +15,6 @@ def get_llm():
             n_ctx=2048,
             n_threads=4,
             use_mlock=True,
+            verbose=False
         )
     return _llm
