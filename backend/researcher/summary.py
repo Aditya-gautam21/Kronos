@@ -32,8 +32,14 @@ def summarize_for_llm(df, sentiment_results):
     prior_width = bb_width.iloc[-40:-20].mean() if len(bb_width) >= 40 else recent_width
     bb_squeeze = bool(recent_width < prior_width * 0.8)
 
+    sample_headlines = [
+        {"source": r["source"], "title": r["title"], "sentiment": r["sentiment"]["label"]}
+        for r in sentiment_results[:5] if r.get("sentiment")
+    ]
+
     return {
         "asset": "ETHUSDT",
+        "timeframe": "1h",
         "current": {
             "price": float(latest["close"]),
             "rsi_14": float(latest["RSI_14"]),
@@ -75,5 +81,7 @@ def summarize_for_llm(df, sentiment_results):
             "positive_count": positive_count,
             "negative_count": negative_count,
             "headline_count_24h": len(sentiment_results),
+            "total_sources": len(set(r["source"] for r in sentiment_results if r.get("source"))),
+            "sample_headlines": sample_headlines,
         },
     }
