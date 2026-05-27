@@ -1,4 +1,6 @@
+import os
 import json
+from contextlib import redirect_stderr
 from backend.local_llm import get_llm
 from backend.researcher.indicators import TechnicalIndicators
 from backend.researcher.sentiment import SentimentAnalyzer
@@ -10,28 +12,26 @@ class ResearchAgent:
         get_llm()
 
     def research(self):
-        techiacl_data = TechnicalIndicators().ohlcv_indicators_combined()
+        technical_data = TechnicalIndicators().ohlcv_indicators_combined()
         sentiment_data = SentimentAnalyzer().fetch_and_analyze(hours=24)
 
-        summary = summarize_for_llm(df=techiacl_data, sentiment_results=sentiment_data)
+        summary = summarize_for_llm(df=technical_data, sentiment_results=sentiment_data)
 
-        prompt = Prompts.research_prompt(summary)
+        prompt = Prompts.research_prompt(summary, technical_data)
 
-        response = get_llm().create_chat_completion(
-            messages=[
-                {
-                    'role':'system',
-                    'content': prompt 
-                },
-                {
-                    'role': 'user',
-                    'content': json.dumps(summary),
-                }
-            ],
-            temperature=0.2
-        )
+        with open(os.devnull, "w") as devnull, redirect_stderr(devnull):
+            response = get_llm().create_chat_completion(
+                messages=[
+                    {
+                        'role':'system',
+                        'content': prompt
+                    },
+                    {
+                        'role': 'user',
+                        'content': json.dumps(summary),
+                    }
+                ],
+                temperature=0.25
+            )
 
-        print(response['choices'][0]['message']['content'])
-        
-if __name__ == "__main__":
-    ResearchAgent().research()
+        return (response['choices'][0]['message']['content'])
