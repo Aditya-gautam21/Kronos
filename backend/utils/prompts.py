@@ -1,6 +1,7 @@
 import json
 from backend.utils.stratigies import Strategy
 
+
 class Prompts:
     @staticmethod
     def research_prompt(summary: dict, df) -> str:
@@ -10,7 +11,7 @@ class Prompts:
         return f"""You are the Researcher Agent at StratOS, an AI quant hedge fund for crypto futures.
 
 ## Your Task
-Analyze the market data below and identify ONE concrete, tradeable edge. Output a structured hypothesis that the Quant Agent can directly turn into a backtest.
+Analyze the market data below and output a complete trade plan that the Trade Executor can directly execute on Binance Futures Testnet.
 
 ## Market Data
 {json.dumps(summary, indent=2)}
@@ -26,79 +27,46 @@ Majority direction from strategies: {majority}
 - `sentiment`: leaning from recent crypto news headlines with positive/negative counts, total unique sources, and sample headlines with per-headline sentiment labels. Use ALL available sources — do not lean on a single headline.
 
 ## Strategy Signals Guidance
-The pre-computed strategy signals above give you a baseline direction. If the majority points LONG, your hypothesis should lean LONG unless the market data strongly contradicts it. Use the strategy signals to anchor your confidence — if all strategies agree, confidence should be higher. If they conflict, explain why one wins over the other in your hypothesis.
+The pre-computed strategy signals give you a baseline direction. If the majority points LONG, your hypothesis should lean LONG unless the market data strongly contradicts it. Use the strategy signals to anchor your confidence — if all strategies agree, confidence should be higher. If they conflict, explain why one wins over the other in your hypothesis.
+
+## Available DF Columns (use EXACTLY these names)
+close, open, high, low, volume, SMA_50, SMA_200, RSI_14, MACD, MACDs, BB_LOWER, BB_UPPER
 
 ## Output (strict JSON inside ```json fence, no other text)
 ```json
 {{
-  "edge_found": ,
-  "asset": <from data>,
-  "timeframe": <from data>,
-  "direction": <from data>(long/short based on sentiment_lean and confidence),
-  "signal": <from data>,
-  "entry": <from data>,
-  "exit": <from data>,
-  "confidence": <from data>,
-  "hypothesis": <from data>,
+  "edge_found": true,
+  "symbol": "ETHUSDT",
+  "direction": "short",
+  "confidence": "medium",
+  "entry_price": 2075.40,
+  "stop_loss": 2155.61,
+  "take_profit": 1972.63,
+  "hypothesis": "Bearish momentum confirmed by MACD below zero and price below both SMA 50 and 200. Negative sentiment from 11 of 16 headlines reinforces the downtrend.",
   "supporting_data": {{
-    "current_price": <from data>,
-    "rsi_value": <from data>,
-    "bb_position": "<from data>",
-    "sentiment_lean": "<negative/positive/neutral based on N headlines across X sources>"
+    "risk_reward_ratio": 2.0,
+    "rsi_value": 43.97,
+    "bb_position": "mid",
+    "sentiment_lean": "negative (11 negative vs 5 positive across 9 sources)"
   }}
 }}
 ```
 
-If no clear edge exists: {{"edge_found": false, "reason": "explain why"}}
+## Price Level Rules
+- `entry_price`: current market price from the `close` column in the data
+- `stop_loss`: price at which the trade is invalidated. For SHORT: above entry (resistance/SMA/BB upper). For LONG: below entry (support/SMA/BB lower). Use actual price levels from the data.
+- `take_profit`: target price. For SHORT: below entry. For LONG: above entry.
+- `risk_reward_ratio`: abs(take_profit - entry_price) / abs(stop_loss - entry_price). Must be >= 1.5 unless confidence is "high".
+- RR ratio of 2.0+ is preferred. Do NOT set SL so tight that a normal candle wick would trigger it — use ATR or BB width from the data as a guide.
+
+## Confidence Rules
+- "high" only if 2+ independent signals agree (indicators + sentiment + strategies).
+- "medium" if one strong signal with supporting evidence.
+- "low" if leaning entirely on sentiment or a single weak indicator.
+- If RSI_14 is NaN in the data, skip RSI-based reasoning entirely.
 
 ## Rules
-- Signal conditions must reference ONLY fields present in the market data above. No made-up indicators.
-- direction MUST match the signal logic. RSI oversold + near BB lower = long. RSI overbought + near BB upper = short.
-- If RSI_14 is NaN in the data, skip RSI-based signals entirely — it means there's not enough history.
-- confidence = "high" only if 2+ independent signals agree (e.g. RSI + BB + SMA cross all pointing same way).
-- confidence = "low" if you're leaning entirely on sentiment or a single weak indicator.
-- Your hypothesis MUST synthesize at least TWO independent data sources (e.g., price structure + sentiment, RSI + volume trend, BB position + SMA crossover). Generic single-indicator bounces are not acceptable.
+- direction MUST match the logic. RSI oversold + near BB lower = long. RSI overbought + near BB upper = short. MACD < 0 = bearish. MACD > 0 = bullish.
+- hypothesis MUST synthesize at least TWO independent data sources (indicators, sentiment, strategies).
 - Use the `timeframe` field from the market data for your output. Do NOT invent a different timeframe.
 - Output ONLY the JSON inside a ```json code block. No explanations, no markdown outside the fence."""
-
-    @staticmethod
-    def quant_prompt(hypothesis: dict, ohlcv_json: str) -> str:
-        return f"""You are the Quant Agent at StratOS. Write a Python backtest script using vectorbt (vbt) that tests the hypothesis below.
-
-## Hypothesis
-{json.dumps(hypothesis, indent=2)}
-
-## OHLCV Data (first 5 rows for column reference; full DataFrame is available as `df` at runtime)
-{ohlcv_json}
-
-## Requirements
-1. The script runs in a sandbox where `df` (a pandas DataFrame with the exact columns shown above, indexed by timestamp) already exists in scope.
-2. Define `entries` and `exits` as boolean Series aligned to `df.index`.
-3. Use `vbt.Portfolio.from_signals()` to run the backtest.
-4. Print results as a single-line JSON to stdout using exactly this pattern:
-
-```python
-import json
-entries = ...   # True when all entry conditions met
-exits = ...     # True when any exit condition met
-portfolio = vbt.Portfolio.from_signals(df["close"], entries, exits)
-results = {{
-    "sharpe": round(portfolio.sharpe_ratio() or 0, 4),
-    "max_drawdown": round(portfolio.max_drawdown() or 0, 4),
-    "win_rate": round(portfolio.trades.win_rate() or 0, 4),
-    "cagr": round(portfolio.cagr() or 0, 4),
-    "total_trades": len(portfolio.trades),
-    "equity_curve": portfolio.value().tolist(),
-}}
-print(json.dumps(results))
-```
-
-## Rules
-- Columns are lowercase: `df["close"]`, `df["rsi_14"]`, `df["bb_lower"]`, etc.
-- Indicators are already in `df`: RSI_14, SMA_50, SMA_200, MACD, BB_LOWER, BB_UPPER. Do NOT recalculate them.
-- NaN values exist in early rows (indicator warmup). Use `.dropna()` or start signals after all indicators are valid.
-- `entries` = True when ALL signal conditions are met simultaneously. `exits` = True when ANY exit condition triggers.
-- For `direction: "short"`, either flip entries/exits logic or add `direction="short"` to `from_signals()`.
-- Percentage-based stops: use `sl_stop=<decimal>` and `tp_stop=<decimal>` in `from_signals()`. E.g., "-4% stop loss" → `sl_stop=0.04`.
-- Time-based exits: track bar counts since entry, force exit after N bars.
-- Output ONLY valid Python code inside a ```python fence. No commentary, no markdown outside the fence. The sandbox has pandas, numpy, vectorbt pre-installed."""
