@@ -1,3 +1,4 @@
+import asyncio
 import ccxt.pro as ccxtpro
 import pandas as pd
 from datetime import datetime, timedelta
@@ -56,38 +57,36 @@ class CryptoCollector:
         since = datetime.now() - timedelta(days=365)
         historical = await self.fetch_ohlcv_data(symbol, timeframe, since=since)
 
-        try:
-            while True:
-                ohlcv = await self.exchange.watch_ohlcv(
-                    symbol=symbol, timeframe=timeframe
-                )
-
-                if ohlcv:
-                    new = pd.DataFrame(
-                        ohlcv,
-                        columns=["Timestamp", "Open", "High", "Low", "Close", "Volume"]
+        while True:
+            try:
+                while True:
+                    ohlcv = await self.exchange.watch_ohlcv(
+                        symbol=symbol, timeframe=timeframe
                     )
-                    new["Timestamp"] = pd.to_datetime(new["Timestamp"], unit="ms")
-                    new.set_index("Timestamp", inplace=True)
 
-                    if historical is not None:
-                        historical = historical[~historical.index.isin(new.index)]
+                    if ohlcv:
+                        new = pd.DataFrame(
+                            ohlcv,
+                            columns=["Timestamp", "Open", "High", "Low", "Close", "Volume"]
+                        )
+                        new["Timestamp"] = pd.to_datetime(new["Timestamp"], unit="ms")
+                        new.set_index("Timestamp", inplace=True)
 
-                    # yield the combined view each update
-                    if historical is not None:
-                        combined = pd.concat([historical, new])
+                        if historical is not None:
+                            historical = historical[~historical.index.isin(new.index)]
+                            combined = pd.concat([historical, new])
+                        else:
+                            combined = new
+
+                        combined = combined[~combined.index.duplicated()]
+                        combined = combined.sort_index()
+                        yield combined
                     else:
-                        combined = new
+                        break
 
-                    combined = combined[~combined.index.duplicated()]
-                    combined = combined.sort_index()
-                    yield combined
-                else:
-                    break
+            except Exception as e:
+                print(f"WebSocket error: {e}. Reconnecting in 5s...")
+                await asyncio.sleep(5)
 
-        except Exception as e:
-            print(f"WebSocket error: {e}")
-            # reconnect could go here
-            raise
-
-    
+    async def close(self):
+        await self.exchange.close()
