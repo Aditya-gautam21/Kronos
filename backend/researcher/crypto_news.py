@@ -22,7 +22,6 @@ class NewsCollector:
             "Bitcoin.com": "https://news.bitcoin.com/feed/",
             "Blockonomi": "https://blockonomi.com/feed/",
             "Coinspeaker": "https://www.coinspeaker.com/feed/",
-            # reddit (hot sorted)
             "r/CryptoCurrency": "https://www.reddit.com/r/CryptoCurrency/.rss",
             "r/ethereum": "https://www.reddit.com/r/ethereum/.rss",
             "r/Bitcoin": "https://www.reddit.com/r/Bitcoin/.rss",
@@ -42,10 +41,7 @@ class NewsCollector:
 
                 for entry in feed.entries:
                     try:
-                        published_parsed = entry.get("published_parsed") or entry.get("updated_parsed")
-                        if published_parsed is None:
-                            continue
-                        published = datetime(*published_parsed[:6])
+                        published = datetime(*entry.published_parsed[:6])
 
                         if published <= cutoff_time:
                             continue
@@ -71,22 +67,3 @@ class NewsCollector:
                 print(f"Error fetching from {source}: {e}")
 
         return all_news
-
-    def save_news(self, news_items, filename="recent_news.csv"):
-        date_str = str(datetime.now().date())
-        date_dir = self.data_dir / date_str
-        date_dir.mkdir(parents=True, exist_ok=True)
-
-        df = pd.DataFrame(news_items)
-        filepath = date_dir / filename
-        df.to_csv(filepath, index=False)
-        print(f"Saved news to {filepath}, Total items: {len(df)}")
-        return df
-
-
-if __name__ == "__main__":
-    collector = NewsCollector()
-    news = collector.fetch_news(hours=24, asset="ETHUSDT")
-    print(f"Found {len(news)} ETH-related articles")
-    for item in news:
-        print(f"  [{item['source']}] {item['title'][:80]}")
