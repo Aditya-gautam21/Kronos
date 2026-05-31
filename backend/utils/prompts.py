@@ -1,7 +1,6 @@
 import json
 from backend.utils.stratigies import Strategy
 
-
 class Prompts:
     @staticmethod
     def research_prompt(summary: dict, df) -> str:
@@ -37,10 +36,10 @@ close, open, high, low, volume, SMA_50, SMA_200, RSI_14, MACD, MACDs, BB_LOWER, 
 {{
   "edge_found": true,
   "symbol": "ETHUSDT",
-  "direction": "short",
-  "confidence": "medium",
+  "direction": "long",
+  "confidence": "high",
   "entry_price": 2075.40,
-  "stop_loss": 2155.61,
+  "stop_loss": 21505.61,
   "take_profit": 1972.63,
   "hypothesis": "Bearish momentum confirmed by MACD below zero and price below both SMA 50 and 200. Negative sentiment from 11 of 16 headlines reinforces the downtrend.",
   "supporting_data": {{
