@@ -38,5 +38,9 @@ Thumbs.db
 # Supabase
 supabase/.temp/
 
+# Runtime state
+state.json
+raw_data/
+
 # Misc
 *.log
