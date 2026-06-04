@@ -1,99 +1,93 @@
 "use client";
 
+import { memo, useState, useEffect } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { PieChart as PieChartIcon } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
-import { fetchAllocation } from "@/lib/api";
+import { useDashboard, type AllocationItem } from "@/lib/dashboard-context";
 
-type AllocationItem = {
-  name: string;
-  value: number;
-  color: string;
-};
+const MemoizedPieChart = memo(function MemoizedPieChart({ data }: { data: AllocationItem[] }) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <PieChart>
+        <Pie
+          data={data}
+          cx="50%"
+          cy="50%"
+          innerRadius={55}
+          outerRadius={75}
+          paddingAngle={4}
+          dataKey="value"
+          stroke="none"
+          isAnimationActive={false}
+        >
+          {data.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={entry.color} />
+          ))}
+        </Pie>
+        <Tooltip
+          contentStyle={{
+            backgroundColor: "#1a1a19",
+            borderColor: "#333330",
+            color: "white",
+            borderRadius: "6px",
+            fontSize: "11px",
+            fontFamily: "monospace",
+          }}
+          itemStyle={{ color: "white" }}
+        />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+});
 
 export function PortfolioAllocation() {
-  const [data, setData] = useState<AllocationItem[]>([{ name: "Cash (Reserve)", value: 100, color: "#333333" }]);
-  const [exposurePct, setExposurePct] = useState(0);
-  const [totalBalance, setTotalBalance] = useState(0);
-
-  const refreshAllocation = useCallback(async () => {
-    try {
-      const result = await fetchAllocation();
-      if (result && result.allocations && result.allocations.length > 0) {
-        setData(result.allocations);
-        setExposurePct(result.exposure_pct ?? 0);
-        setTotalBalance(result.total_balance ?? 0);
-      }
-    } catch {
-      // backend unreachable
-    }
-  }, []);
+  const { allocation: data, exposurePct, totalBalance } = useDashboard();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    refreshAllocation();
-    const interval = setInterval(refreshAllocation, 10000);
-    return () => clearInterval(interval);
-  }, [refreshAllocation]);
+    setMounted(true);
+  }, []);
 
   return (
-    <div className="glass-panel rounded-lg p-5 flex flex-col h-full">
+    <div className="bg-[#222220] border border-[#333330] rounded-xl p-5 flex flex-col h-full shadow-sm">
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-sm font-bold tracking-wider text-white flex items-center gap-2">
-          <PieChartIcon className="w-4 h-4 text-magenta-neon" />
+        <h2 className="text-sm font-serif font-bold tracking-wide text-white flex items-center gap-2">
+          <PieChartIcon className="w-4 h-4 text-claude-coral" />
           KELLY ALLOCATION
         </h2>
       </div>
 
-      <div className="flex-1 flex flex-col relative">
-        <div className="h-[200px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={5}
-                dataKey="value"
-                stroke="none"
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "rgba(15, 15, 18, 0.9)",
-                  borderColor: "rgba(255,255,255,0.1)",
-                  color: "white",
-                }}
-                itemStyle={{ color: "white", fontFamily: "monospace" }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+      <div className="flex-1 flex flex-col relative min-h-0">
+        <div className="h-[180px] w-full">
+          {mounted ? (
+            <MemoizedPieChart data={data} />
+          ) : (
+            <div className="h-full flex items-center justify-center text-[#7c7a72] font-mono text-[10px]">
+              Loading chart...
+            </div>
+          )}
         </div>
 
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-50px]">
-          <span className="text-xs font-mono text-zinc-500">EXPOSURE</span>
-          <span className={`text-xl font-bold font-mono ${exposurePct > 0 ? "text-cyan-neon" : "text-zinc-600"}`}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-35px]">
+          <span className="text-[10px] font-mono text-[#7c7a72]">EXPOSURE</span>
+          <span className={`text-lg font-bold font-mono ${exposurePct > 0 ? "text-claude-blue" : "text-[#7c7a72]"}`}>
             {exposurePct.toFixed(1)}%
           </span>
           {totalBalance > 0 && (
-            <span className="text-[10px] font-mono text-zinc-500 mt-1">
-              ${totalBalance.toLocaleString()}
+            <span className="text-[9px] font-mono text-[#7c7a72] mt-0.5">
+              ${totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </span>
           )}
         </div>
 
-        <div className="space-y-2 mt-4">
-          {data.map((item, idx) => (
-            <div key={idx} className="flex justify-between items-center text-xs font-mono">
+        <div className="space-y-1.5 mt-2 overflow-y-auto custom-scrollbar flex-1 pr-1">
+          {data.map((item: AllocationItem, idx: number) => (
+            <div key={idx} className="flex justify-between items-center text-[11px] font-mono">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-zinc-300">{item.name}</span>
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                <span className="text-[#a5a39a] truncate max-w-[120px]">{item.name}</span>
               </div>
-              <span className="text-white">{item.value}%</span>
+              <span className="text-white font-semibold">{item.value}%</span>
             </div>
           ))}
         </div>

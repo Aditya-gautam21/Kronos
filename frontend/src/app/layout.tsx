@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Lora, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { DashboardProvider } from "@/lib/dashboard-context";
 import "./globals.css";
+
+const lora = Lora({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -25,9 +35,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
+      className={`${spaceGrotesk.variable} ${lora.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col text-sm selection:bg-cyan-neon selection:text-black">{children}</body>
+      <body className="min-h-full flex flex-col text-sm selection:bg-[#e0573e] selection:text-white">
+        <DashboardProvider>{children}</DashboardProvider>
+      </body>
     </html>
   );
 }

@@ -1,84 +1,56 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { fetchLogs } from "@/lib/api";
-
-type LogEntry = {
-  id: number;
-  agent: string;
-  message: string;
-  timestamp: string;
-  type: "info" | "success" | "warning" | "error";
-};
+import { useEffect, useRef } from "react";
+import { useDashboard, type LogEntry } from "@/lib/dashboard-context";
 
 export function AgentLog() {
-  const [logs, setLogs] = useState<LogEntry[]>([
-    { id: 1, agent: "SYSTEM", message: "System standing by. Waiting for CIO to initiate autonomous trading.", timestamp: "00:00:00.000", type: "info" },
-  ]);
-
+  const { logs } = useDashboard();
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  const refreshLogs = useCallback(async () => {
-    try {
-      const data = await fetchLogs();
-      if (Array.isArray(data) && data.length > 0) {
-        setLogs(data);
-      }
-    } catch {
-      // backend unreachable — keep current logs
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshLogs();
-    const interval = setInterval(refreshLogs, 3000);
-    return () => clearInterval(interval);
-  }, [refreshLogs]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
   const getColor = (type: string, agent: string) => {
-    if (type === "error") return "text-red-500";
-    if (type === "warning") return "text-orange-neon";
-    if (type === "success") return "text-green-neon";
+    if (type === "error") return "text-red-400";
+    if (type === "warning") return "text-claude-coral";
+    if (type === "success") return "text-claude-green";
 
     switch (agent) {
       case "SYSTEM":
-        return "text-zinc-500";
+        return "text-[#7c7a72]";
       case "RESEARCH":
-        return "text-cyan-neon";
+        return "text-claude-blue";
       case "QUANT":
-        return "text-magenta-neon";
+        return "text-claude-coral";
       case "RISK":
-        return "text-orange-neon";
+        return "text-[#b0aea5]";
       case "EXECUTION":
-        return "text-green-neon";
+        return "text-claude-green";
       case "PORTFOLIO":
-        return "text-blue-400";
+        return "text-claude-blue/80";
       default:
-        return "text-white";
+        return "text-[#f9f9f6]";
     }
   };
 
   return (
-    <div className="glass-panel rounded-lg flex flex-col h-full bg-[#050505]/90 border-t-4 border-t-cyan-neon overflow-hidden">
-      <div className="flex justify-between items-center px-4 py-2 border-b border-panel-border bg-black/50">
-        <h2 className="text-[10px] font-mono tracking-widest text-zinc-400">AGENT LOG STREAM</h2>
-        <div className="flex gap-2">
-          <div className="w-2 h-2 rounded-full bg-cyan-neon/30"></div>
-          <div className="w-2 h-2 rounded-full bg-cyan-neon/60"></div>
-          <div className="w-2 h-2 rounded-full bg-cyan-neon animate-pulse"></div>
+    <div className="bg-[#222220] border border-[#333330] border-t-4 border-t-claude-coral rounded-xl flex flex-col h-full shadow-sm overflow-hidden">
+      <div className="flex justify-between items-center px-4 py-2 border-b border-[#333330] bg-[#1a1a19]/80">
+        <h2 className="text-[10px] font-mono tracking-widest text-[#a5a39a] font-bold">AGENT LOG STREAM</h2>
+        <div className="flex gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-claude-coral/20"></div>
+          <div className="w-1.5 h-1.5 rounded-full bg-claude-coral/50"></div>
+          <div className="w-1.5 h-1.5 rounded-full bg-claude-coral animate-pulse"></div>
         </div>
       </div>
 
-      <div className="p-4 overflow-y-auto font-mono text-[11px] leading-relaxed flex-1 custom-scrollbar">
-        {logs.map((log) => (
-          <div key={log.id} className="mb-2 hover:bg-white/5 px-1 py-0.5 rounded -mx-1 transition-colors flex">
-            <span className="text-zinc-600 mr-3 shrink-0">[{log.timestamp}]</span>
+      <div className="p-4 overflow-y-auto font-mono text-[11px] leading-relaxed flex-1 custom-scrollbar bg-[#191918]/20">
+        {logs.map((log: LogEntry) => (
+          <div key={log.id} className="mb-1.5 hover:bg-[#222220]/50 px-1.5 py-0.5 rounded -mx-1.5 transition-colors duration-100 flex items-start">
+            <span className="text-[#7c7a72] mr-3 shrink-0 select-none">[{log.timestamp}]</span>
             <span className={`${getColor("info", log.agent)} font-bold mr-3 shrink-0 w-20`}>{log.agent}</span>
-            <span className={`${log.type !== "info" ? getColor(log.type, "") : "text-zinc-300"}`}>{log.message}</span>
+            <span className={`${log.type !== "info" ? getColor(log.type, "") : "text-[#a5a39a]"}`}>{log.message}</span>
           </div>
         ))}
         <div ref={bottomRef} />
