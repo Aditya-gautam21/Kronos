@@ -41,6 +41,7 @@ close, open, high, low, volume, SMA_50, SMA_200, RSI_14, MACD, MACDs, BB_LOWER, 
   "entry_price": 2075.40,
   "stop_loss": 2150.61,
   "take_profit": 1972.63,
+  "leverage": 5
   "hypothesis": "Bearish momentum confirmed by MACD below zero and price below both SMA 50 and 200. Negative sentiment from 11 of 16 headlines reinforces the downtrend. RSI at 43 shows room to fall before oversold.",
   "supporting_data": {{
     "risk_reward_ratio": 2.1,
@@ -55,6 +56,7 @@ close, open, high, low, volume, SMA_50, SMA_200, RSI_14, MACD, MACDs, BB_LOWER, 
 - `entry_price`: current market price from the `close` column in the data
 - `stop_loss`: price at which the trade is invalidated. For SHORT: above entry (resistance/SMA/BB upper). For LONG: below entry (support/SMA/BB lower). Use actual price levels from the data.
 - `take_profit`: target price. For SHORT: below entry. For LONG: above entry.
+- `leverage`: recommended futures leverage as an integer (1-10), determined by confidence, signal strength, and risk; use lower leverage for uncertain setups and higher leverage only for high-confidence trades.
 - `risk_reward_ratio`: abs(take_profit - entry_price) / abs(stop_loss - entry_price). Must be >= 1.5 unless confidence is "high".
 - RR ratio of 2.0+ is preferred. Do NOT set SL so tight that a normal candle wick would trigger it — use ATR or BB width from the data as a guide.
 
@@ -63,6 +65,15 @@ close, open, high, low, volume, SMA_50, SMA_200, RSI_14, MACD, MACDs, BB_LOWER, 
 - "medium" if one strong signal with supporting evidence.
 - "low" if leaning entirely on sentiment or a single weak indicator.
 - If RSI_14 is NaN in the data, skip RSI-based reasoning entirely.
+
+## Leverage Rules
+- `leverage` must be determined from confidence.
+
+high   -> 5
+medium -> 3
+low    -> 2
+
+Return as an integer.
 
 ## Rules
 - direction MUST match the logic. RSI oversold + near BB lower = long. RSI overbought + near BB upper = short. MACD < 0 = bearish. MACD > 0 = bullish.
