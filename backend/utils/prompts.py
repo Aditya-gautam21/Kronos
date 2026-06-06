@@ -52,6 +52,9 @@ close, open, high, low, volume, SMA_50, SMA_200, RSI_14, MACD, MACDs, BB_LOWER, 
 }}
 ```
 
+## Trading Fees
+- Trading fees for market order on binance futures is 0.05% of the trade, keep that in mind while placing the trade information. 
+
 ## Price Level Rules
 - `entry_price`: current market price from the `close` column in the data
 - `stop_loss`: price at which the trade is invalidated. For SHORT: above entry (resistance/SMA/BB upper). For LONG: below entry (support/SMA/BB lower). Use actual price levels from the data.
