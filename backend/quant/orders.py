@@ -1,12 +1,16 @@
 import os
+from dotenv import load_dotenv
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
 
+load_dotenv()
+
 class Order: 
     def __init__(self):
-        client = Client(
-        api_key=os.environ.get('BINANCE_TESTNET_API'),
-        api_secret=os.environ.get('BINANCE_TESTNET_SECRET')
+        self.client = Client(
+        api_key=os.getenv('BINANCE_TESTNET_API'),
+        api_secret=os.getenv('BINANCE_TESTNET_SECRET'),
+        testnet=True
         )
         
     def get_balance(self) -> float:
