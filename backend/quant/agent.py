@@ -1,10 +1,10 @@
-import json
 from backend.utils.extract_json import extract_json
 from backend.researcher.agent import ResearchAgent
 from backend.local_llm import get_llm
 from backend.quant.kelly import kelly_position_size
 from backend.quant.orders import Order
 from binance.exceptions import BinanceAPIException
+from backend.database.supabase import Database
 
 class QuantAgent:
     def __init__(self):
@@ -45,8 +45,6 @@ class QuantAgent:
         print(f"Balance: ${balance:.2f}")
 
         qty = position_size.get("quantity")
-
-        #print("--- Placing Orders ---")
         self.order.set_leverage(symbol, int(trade['leverage']))
 
         result = {"status": "executed", "initial_trade_info": trade, "position_size": position_size, "orders": {}}
@@ -78,13 +76,11 @@ class QuantAgent:
 
         print("DONE — check testnet.binancefuture.com")
         return result
-    
-    def save_json(self):
-        results = self.execute()
-
-        with open ('trade.json', 'w+') as file:
-            json.dump(results, file)
-
+            
 if __name__ == '__main__':
-    QuantAgent().save_json()
+    trade = QuantAgent().save_json()
+    db = Database(trade)
+
+    db.trades()
+    db.trade_raw_data()
     print("SUCCESSFUL")
