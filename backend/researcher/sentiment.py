@@ -3,13 +3,17 @@ from transformers.utils import logging
 from backend.researcher.crypto_news import NewsCollector
 
 class SentimentAnalyzer:
+    _pipeline = None  
+
     def __init__(self):
         logging.set_verbosity_error()
-        self.pipeline = pipeline(
-            "sentiment-analysis",
-            model="mrm8488/distilroberta-finetuned-financial-news-sentiment-analysis",
-            device=-1,
-        )
+        if SentimentAnalyzer._pipeline is None:
+            SentimentAnalyzer._pipeline = pipeline(
+                "sentiment-analysis",
+                model="mrm8488/distilroberta-finetuned-financial-news-sentiment-analysis",
+                device=-1,
+            )
+        self.pipeline = SentimentAnalyzer._pipeline
 
     def analyze(self, text: str) -> dict | None:
         if not text:
