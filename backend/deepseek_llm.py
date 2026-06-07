@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from langchain_deepseek import ChatDeepSeek
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
+load_dotenv()
 
 _deepseek_llm = None
 
