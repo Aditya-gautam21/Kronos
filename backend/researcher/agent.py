@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from backend.local_llm import get_llm
 from backend.researcher.indicators import TechnicalIndicators
 from backend.researcher.sentiment import SentimentAnalyzer
@@ -10,8 +11,12 @@ class ResearchAgent:
         get_deepseek_llm()
 
     def research(self):
-        technical_data = TechnicalIndicators().ohlcv_indicators_combined()
-        sentiment_data = SentimentAnalyzer().fetch_and_analyze(hours=24)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            tech_future = executor.submit(TechnicalIndicators().ohlcv_indicators_combined)
+            sentiment_future = executor.submit(SentimentAnalyzer().fetch_and_analyze, hours=24)
+
+        technical_data = tech_future.result()
+        sentiment_data = sentiment_future.result()
 
         summary = summarize_for_llm(df=technical_data, sentiment_results=sentiment_data)
 
