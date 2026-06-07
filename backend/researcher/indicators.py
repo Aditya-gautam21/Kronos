@@ -1,22 +1,12 @@
 import pandas as pd
-import numpy as np
 import pandas_ta as ta
-from pathlib import Path
-from datetime import datetime
 from backend.researcher.binance import BINANCE
 
 class TechnicalIndicators:
     def calculate_indicators(self, data):
-        #print(f"\n Calculating technical indicators")
-
         df = data.copy()
         df.sort_index(inplace = True)
-
-        open_ = df['open']
         close = df['close']
-        high = df['high']
-        low = df['low']
-        volume = df['volume']
 
         indicators = pd.DataFrame(index=df.index)
 
@@ -32,9 +22,6 @@ class TechnicalIndicators:
         bb_df = ta.bbands(close, length=20, std=2)
         indicators['BB_LOWER'] = bb_df.iloc[:, 0]
         indicators['BB_UPPER'] = bb_df.iloc[:, 2]
-
-        #print(f"Addedd {len(indicators.columns)} technical indicators")
-        #print(f"Indicators columns: {indicators.columns.tolist()}\n")
 
         return indicators
     
