@@ -43,10 +43,11 @@ def kelly_position_size(
 
     return {
         "quantity": quantity,
+        "leverage": leverage,
         "notional_usdt": round(position_value, 2),
+        "margin_usdt": (round(position_value, 2) / leverage),
         "risk_pct": round(kelly_fraction * 100, 2),
         "kelly_fraction": round(kelly_fraction, 4),
-        "leverage": leverage,
         "sl_distance_pct": round(risk_pct_per_unit * 100, 2),
         "tp_distance_pct": round(reward_pct_per_unit * 100, 2),
     }
