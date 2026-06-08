@@ -41,3 +41,20 @@ class Database:
         }
 
         return self.supabase.table('trade_raw_data').insert(raw_data).execute()
+    
+    def trade_results(self):
+        results = {
+            'trade_id': self.trade_id,
+            'exit_order_id':,
+            'exit_price':,
+            'exit_reason':,
+            'gross_pnl':,
+            'trading_fees':,
+            'total_funding_fees':,
+            'net_pnl':,
+            'holding_duration':,
+            'funding_periods':,
+            'recorded_at':
+        }
+
+        return self.supabase.table("trade_results").insert(results).execute()
