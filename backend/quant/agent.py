@@ -78,7 +78,7 @@ class QuantAgent:
         return result
             
 if __name__ == '__main__':
-    trade = QuantAgent().save_json()
+    trade = QuantAgent().execute()
     db = Database(trade)
 
     db.trades()
