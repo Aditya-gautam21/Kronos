@@ -8,7 +8,8 @@ from fastapi import APIRouter
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
 
-from backend.trade_execution_agent import TradeExecutionAgent, LEVERAGE
+from backend.quant.agent import QuantAgent
+from backend.database.supabase import Database
 from backend.state import load_state, save_state, add_log
 
 load_dotenv()
@@ -169,12 +170,15 @@ async def logs():
     state = load_state()
     return state["logs"]
 
-
-@router.post("/start-autonomous-bot")
-async def start_bot():
+@router.post("/save-data")
+async def save_data():
     try:
-        agent = TradeExecutionAgent()
-        result = agent.execute()
-        return result
+        result = await asyncio.to_thread(QuantAgent().execute)
+        db = Database(result)
+
+        db.trades()
+        db.trade_raw_data()
+        return {'status': 'ok', 'result': result}
     except Exception as e:
-        return {"status": "error", "reason": str(e)}
+        return {'status': 'error', 'reason': str(e)}
+
