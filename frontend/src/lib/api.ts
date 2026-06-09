@@ -52,7 +52,7 @@ export async function fetchLogs(signal?: AbortSignal) {
 }
 
 export async function startBot() {
-  const res = await fetch(`${API_BASE}/start-autonomous-bot`, {
+  const res = await fetch(`${API_BASE}/save-data`, {
     method: "POST",
   });
   return res.json();
