@@ -2,19 +2,25 @@ import os
 from dotenv import load_dotenv
 import uuid
 from datetime import datetime, timezone
-from supabase import create_client
+from supabase import create_async_client
 
 load_dotenv()
-class Database:
-    def __init__(self, trade_data: dict):
-        self.supabase = create_client(
+_client = None
+
+async def get_client():
+    global _client
+    if _client is None:
+        _client = await create_async_client(
             supabase_url=os.getenv('SUPABASE_URL'),
             supabase_key=os.getenv('SUPABASE_SECRET_ROLE_KEY')
         )
+    return _client
 
+class Database:
+    def __init__(self, trade_data: dict):
         self.trade_data = trade_data
 
-    def trades(self):
+    async def trades(self):
         self.trade_id = str(uuid.uuid4())
 
         trade = {
@@ -22,39 +28,42 @@ class Database:
             'symbol': self.trade_data['initial_trade_info']['symbol'],
             'direction': self.trade_data['initial_trade_info']['direction'],
             'confidence': self.trade_data['initial_trade_info']['confidence'],
-            'entry_order_id':self.trade_data['orders']['entry']['orderId'],
-            'entry_price':self.trade_data['initial_trade_info']['entry_price'],
-            'quantity':self.trade_data['position_size']['margin_usdt'],
-            'leverage':self.trade_data['position_size']['leverage'],
-            'sl_price':self.trade_data['initial_trade_info']['stop_loss'],
-            'tp_price':self.trade_data['initial_trade_info']['take_profit'],
+            'entry_order_id': self.trade_data['orders']['entry']['orderId'],
+            'entry_price': self.trade_data['initial_trade_info']['entry_price'],
+            'quantity': self.trade_data['position_size']['margin_usdt'],
+            'leverage': self.trade_data['position_size']['leverage'],
+            'sl_price': self.trade_data['initial_trade_info']['stop_loss'],
+            'tp_price': self.trade_data['initial_trade_info']['take_profit'],
             'opened_at': datetime.now(timezone.utc).isoformat()
         }
 
-        return self.supabase.table("trades").insert(trade).execute()
-    
-    def trade_raw_data(self):
+        client = await get_client()
+        return await client.table("trades").insert(trade).execute()
+
+    async def trade_raw_data(self):
         raw_data = {
             'trade_id': self.trade_id,
             'llm_output': self.trade_data,
             'recorded_at': datetime.now(timezone.utc).isoformat()
         }
 
-        return self.supabase.table('trade_raw_data').insert(raw_data).execute()
-    
-    def trade_results(self):
+        client = await get_client()
+        return await client.table('trade_raw_data').insert(raw_data).execute()
+
+    async def trade_results(self):
         results = {
             'trade_id': self.trade_id,
-            'exit_order_id':,
-            'exit_price':,
-            'exit_reason':,
-            'gross_pnl':,
-            'trading_fees':,
-            'total_funding_fees':,
-            'net_pnl':,
-            'holding_duration':,
-            'funding_periods':,
-            'recorded_at':
+            'exit_order_id': None,
+            'exit_price': None,
+            'exit_reason': None,
+            'gross_pnl': None,
+            'trading_fees': None,
+            'total_funding_fees': None,
+            'net_pnl': None,
+            'holding_duration': None,
+            'funding_periods': None,
+            'recorded_at': datetime.now(timezone.utc).isoformat()
         }
 
-        return self.supabase.table("trade_results").insert(results).execute()
+        client = await get_client()
+        return await client.table("trade_results").insert(results).execute()
