@@ -176,9 +176,14 @@ async def save_data():
         result = await asyncio.to_thread(QuantAgent().execute)
         db = Database(result)
 
-        db.trades()
-        db.trade_raw_data()
-        return {'status': 'ok', 'result': result}
+        if result['status'] == "executed":
+            await db.trades()
+            await db.trade_raw_data()
+
+            return {'status': 'ok', 'result': result}
+
+        if result['status'] == 'skipped':
+            return {'status': 'ok', 'reason': 'skipped trade'}
     except Exception as e:
         return {'status': 'error', 'reason': str(e)}
 
