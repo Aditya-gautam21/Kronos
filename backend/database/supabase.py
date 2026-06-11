@@ -33,7 +33,9 @@ class Database:
             'quantity': self.trade_data['position_size']['margin_usdt'],
             'leverage': self.trade_data['position_size']['leverage'],
             'sl_price': self.trade_data['initial_trade_info']['stop_loss'],
+            'sl_order_id': self.trade_data['orders']['stop_loss']['algoId'],
             'tp_price': self.trade_data['initial_trade_info']['take_profit'],
+            'tp_order_id': self.trade_data['orders']['take_profit']['algoId'],
             'opened_at': datetime.now(timezone.utc).isoformat()
         }
 
