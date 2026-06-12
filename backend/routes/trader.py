@@ -179,9 +179,10 @@ async def save_data():
         if result['status'] == "executed":
             await db.trades()
             await db.trade_raw_data()
+            await db.trade_results()
 
             return {'status': 'ok', 'result': result}
-
+        
         if result['status'] == 'skipped':
             return {'status': 'ok', 'reason': 'skipped trade'}
     except Exception as e:
