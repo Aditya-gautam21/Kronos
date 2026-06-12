@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import uuid
 from datetime import datetime, timezone
 from supabase import create_async_client
+from backend.quant.executed_trades import ExecutedTrades
 
 load_dotenv()
 _client = None
@@ -53,15 +54,19 @@ class Database:
         return await client.table('trade_raw_data').insert(raw_data).execute()
 
     async def trade_results(self):
+        executed = await ExecutedTrades().executed_trade_data()
+        if executed is None:
+            return None  # no closed trades yet — nothing to record
+
         results = {
             'trade_id': self.trade_id,
             'exit_order_id': None,
-            'exit_price': None,
-            'exit_reason': None,
-            'gross_pnl': None,
-            'trading_fees': None,
+            'exit_price': executed['trade']['price'],
+            'exit_reason': executed['exit_reason'],
+            'gross_pnl': executed['trade']['realizedPnl'],
+            'trading_fees': executed['trade']['commission'],
             'total_funding_fees': None,
-            'net_pnl': None,
+            'net_pnl': executed['net_pnl'],
             'holding_duration': None,
             'funding_periods': None,
             'recorded_at': datetime.now(timezone.utc).isoformat()
