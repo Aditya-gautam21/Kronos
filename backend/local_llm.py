@@ -12,7 +12,6 @@ logging.getLogger("llama_cpp").setLevel(logging.CRITICAL)
 _llm = None
 _use_deepseek = True  # flip to False to switch back to local model
 
-
 def get_local_llm():
     """Original local llama-cpp model (kept as fallback)."""
     global _llm
@@ -26,7 +25,6 @@ def get_local_llm():
             verbose=False,
         )
     return _llm
-
 
 def get_llm():
     if _use_deepseek:
