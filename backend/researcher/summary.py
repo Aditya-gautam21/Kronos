@@ -37,6 +37,45 @@ def summarize_for_llm(df, sentiment_results):
         for r in sentiment_results[:5] if r.get("sentiment")
     ]
 
+    # ── New: ADX-based regime detection ──────────────────────────────
+    adx = float(latest["ADX_14"]) if "ADX_14" in df.columns else None
+    atr = float(latest["ATR_14"]) if "ATR_14" in df.columns else None
+    atr_avg = float(df["ATR_14"].tail(50).mean()) if "ATR_14" in df.columns and len(df) >= 50 else atr
+
+    if adx is not None:
+        if adx > 25:
+            regime = "TRENDING"
+            regime_detail = "strong trend" if adx > 35 else "moderate trend"
+        elif adx < 20:
+            regime = "RANGING"
+            regime_detail = "tight range" if bb_squeeze else "wide range"
+        else:
+            regime = "TRANSITIONAL"
+            regime_detail = "no clear regime"
+    else:
+        regime = "UNKNOWN"
+        regime_detail = "ADX not available"
+        adx = 0
+
+    # ── New: Volatility context ──────────────────────────────────────
+    if atr is not None and atr_avg is not None and atr_avg > 0:
+        atr_ratio = round(atr / atr_avg, 2)
+        if atr_ratio > 1.3:
+            vol_regime = "high"
+        elif atr_ratio < 0.7:
+            vol_regime = "low"
+        else:
+            vol_regime = "normal"
+    else:
+        vol_regime = "unknown"
+        atr_ratio = 1.0
+
+    # ── New: Price vs SMA spread (trend strength %) ──────────────────
+    if len(sma_50) >= 1 and len(sma_200) >= 1:
+        sma_spread_pct = round(abs(float(sma_50.iloc[-1]) - float(sma_200.iloc[-1])) / float(sma_200.iloc[-1]) * 100, 2)
+    else:
+        sma_spread_pct = 0
+
     return {
         "asset": "ETHUSDT",
         "timeframe": "1h",
@@ -71,6 +110,27 @@ def summarize_for_llm(df, sentiment_results):
             "sma_cross": sma_cross,
             "rsi_oversold_days": rsi_oversold_days,
             "bb_squeeze": bb_squeeze,
+            "sma_spread_pct": sma_spread_pct,
+        },
+        # ── New section ──────────────────────────────────────────────
+        "regime": {
+            "classification": regime,
+            "detail": regime_detail,
+            "adx": round(adx, 1),
+            "volatility": vol_regime,
+            "atr": round(atr, 2) if atr else None,
+            "atr_vs_50_period_avg": atr_ratio,
+            "implication": (
+                "Trend-following strategies (MA crossover, MACD) are reliable. "
+                "Mean-reversion signals (RSI) are traps — trends persist."
+                if regime == "TRENDING"
+                else "Mean-reversion strategies (RSI, BB touch) are reliable. "
+                "Trend-following signals whipsaw — stay skeptical of breakouts."
+                if regime == "RANGING"
+                else "No strategy class has a clear edge. Size small or skip."
+                if regime == "TRANSITIONAL"
+                else "Regime unknown — rely on strategy majority and be cautious."
+            ),
         },
         "sentiment": {
             "recent_leaning": (
