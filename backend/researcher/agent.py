@@ -5,6 +5,7 @@ from backend.researcher.sentiment import SentimentAnalyzer
 from backend.researcher.summary import summarize_for_llm
 from backend.utils.prompts import Prompts
 from backend.deepseek_llm import get_deepseek_llm
+from backend.state import add_log
 
 class ResearchAgent:
     def __init__(self):
@@ -35,4 +36,5 @@ class ResearchAgent:
             temperature=0.21
         )
 
+        add_log(agent="Quant", message=response.content, log_type="research_output")
         return response.content
