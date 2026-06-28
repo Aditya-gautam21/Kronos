@@ -23,6 +23,11 @@ class TechnicalIndicators:
         indicators['BB_LOWER'] = bb_df.iloc[:, 0]
         indicators['BB_UPPER'] = bb_df.iloc[:, 2]
 
+        adx_df = ta.adx(df['high'], df['low'], df['close'], length=14)
+        indicators['ADX_14'] = adx_df['ADX_14']
+
+        indicators['ATR_14'] = ta.atr(df['high'], df['low'], df['close'], length=14)
+
         return indicators
     
     def ohlcv_indicators_combined(self):
