@@ -5,6 +5,7 @@ from backend.quant.kelly import kelly_position_size
 from backend.quant.orders import Order
 from binance.exceptions import BinanceAPIException
 from backend.database.supabase import Database
+from backend.state import add_log
 
 class QuantAgent:
     def __init__(self):
@@ -75,6 +76,7 @@ class QuantAgent:
             print(f"TP FAILED: {e}")
 
         print("DONE — check testnet.binancefuture.com")
+        add_log(agent="Quant", message=result, log_type="quant_output")
         return result
             
 if __name__ == '__main__':
