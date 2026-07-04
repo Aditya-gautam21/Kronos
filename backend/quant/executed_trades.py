@@ -32,6 +32,7 @@ async def get_supabase_client():
 class ExecutedTrades:
     def __init__(self):
         self.order = Order()
+        self._trade_open = True
 
     async def executed_trade_data(self):
         client = get_binance_client()
@@ -40,6 +41,7 @@ class ExecutedTrades:
 
         try:
             open_trades = (await table.select("trade_id, symbol, entry_order_id, sl_order_id, tp_order_id").eq('status', 'OPEN').execute()).data
+            print(f"Trade dtata : {open_trades}")
 
             for row in open_trades:
                 sl_id = row['sl_order_id']
@@ -53,25 +55,37 @@ class ExecutedTrades:
                 
                 TERMINAL = {'FINISHED', 'CANCELED', 'EXPIRED', 'REJECTED'}
                 if sl_order['algoStatus'] in TERMINAL:
+                    self._trade_open = False
                     trade = client.futures_account_trades(symbol=symbol, orderId=orderId)
                     net_pnl = float(trade[0]['realizedPnl']) - float(trade[0]['commission'])
 
                     await table.update({'status': 'CLOSED'}).eq('trade_id', trade_id).execute()
                     self.order.cancel_all_orders(symbol= symbol)
 
-                    return {'exit_reason':sl_order['orderType'], 'trade':trade, 'net_pnl': net_pnl}
+                    return self._trade_open, symbol, {'exit_reason':sl_order['orderType'], 'trade':trade, 'net_pnl': net_pnl}
                 
                 if tp_order['algoStatus'] in TERMINAL:
+                    self._trade_open = False
                     trade = client.futures_account_trades(symbol=symbol, orderId=orderId)
                     net_pnl = float(trade[0]['realizedPnl']) - float(trade[0]['commission'])
 
                     await table.update({'status': 'CLOSED'}).eq('trade_id', trade_id).execute()
                     self.order.cancel_all_orders(symbol= symbol)
 
-                    return {'exit_reason':tp_order['orderType'], 'trade':trade, 'net_pnl': net_pnl}
+                    return self._trade_open, symbol, {'exit_reason':tp_order['orderType'], 'trade':trade, 'net_pnl': net_pnl}
         except Exception as e:
             print(e)
             raise
-    
-if __name__ == "__main__":
-    asyncio.run(ExecutedTrades().executed_trade_data())
+
+    async def open_trade_info(self, symbol):
+        Client = get_binance_client()
+        supabase = await get_supabase_client()
+        trade_info = []
+
+        table = supabase.table('trades')
+        trade = (await table.select('status').eq('symbol', symbol).execute()).data
+
+        return(trade[1])
+
+if __name__ == '__main__':
+   test = asyncio.run(ExecutedTrades().open_trade_info('ETHUSDT'))
