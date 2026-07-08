@@ -1,4 +1,4 @@
-def summarize_for_llm(df, sentiment_results):
+def summarize_for_llm(df, sentiment_results, symbol):
     latest = df.iloc[-1]
     week = df.tail(168)
     month = df.tail(720)
@@ -77,7 +77,7 @@ def summarize_for_llm(df, sentiment_results):
         sma_spread_pct = 0
 
     return {
-        "asset": "ETHUSDT",
+        "asset": symbol,
         "timeframe": "1h",
         "current": {
             "price": float(latest["close"]),
