@@ -1,4 +1,83 @@
-def summarize_for_llm(df, sentiment_results, symbol):
+def _build_quant_section(q: dict | None) -> dict | None:
+    """Derive plain-English interpretation from raw Binance quant signals."""
+    if not q:
+        return None
+
+    funding = q["funding"]
+    taker = q["taker"]
+    oi = q["open_interest"]
+
+    if funding["bias"] == "bullish_overheating":
+        funding_msg = (
+            f"Funding rate {funding['current_rate']}% is elevated vs 24h avg {funding['avg_rate_24h']}%. "
+            "Longs are paying a premium — the trade is crowded. Reversal risk is high."
+        )
+    elif funding["bias"] == "bearish_short_crowded":
+        funding_msg = (
+            f"Funding rate {funding['current_rate']}% is negative. "
+            "Shorts are paying longs — the crowd is bearish. A price bounce triggers a short squeeze."
+        )
+    else:
+        funding_msg = (
+            f"Funding rate {funding['current_rate']}% is near the 24h average. No crowding signal."
+        )
+
+    if taker["bias"] == "aggressive_buyers":
+        taker_msg = (
+            f"Taker buy/sell ratio {taker['buy_sell_ratio']} — aggressive buyers dominate. "
+            f"Real-money conviction is bullish."
+        )
+    elif taker["bias"] == "aggressive_sellers":
+        taker_msg = (
+            f"Taker buy/sell ratio {taker['buy_sell_ratio']} — aggressive sellers dominate. "
+            f"Real-money conviction is bearish."
+        )
+    else:
+        taker_msg = (
+            f"Taker buy/sell ratio {taker['buy_sell_ratio']} — balanced. No directional conviction from market orders."
+        )
+
+    oi_delta = oi["delta_24h_pct"]
+    if oi_delta > 5:
+        oi_msg = f"Open interest up {oi_delta}% in 24h — significant new capital entering. Trend has backing."
+    elif oi_delta > 0:
+        oi_msg = f"Open interest up {oi_delta}% in 24h — moderate new interest."
+    elif oi_delta < -5:
+        oi_msg = f"Open interest down {abs(oi_delta)}% in 24h — capital is leaving. Trend is weakening."
+    else:
+        oi_msg = f"Open interest flat ({oi_delta}% 24h change). No new conviction entering."
+
+    signals = []
+    if funding["bias"] == "bullish_overheating":
+        signals.append("funding warns of crowding")
+    elif funding["bias"] == "bearish_short_crowded":
+        signals.append("funding warns of short squeeze risk")
+    if taker["bias"] == "aggressive_buyers":
+        signals.append("taker flow is bullish")
+    elif taker["bias"] == "aggressive_sellers":
+        signals.append("taker flow is bearish")
+    if oi_delta > 3:
+        signals.append("OI confirms trend strength")
+    elif oi_delta < -3:
+        signals.append("OI shows capital outflow")
+
+    if not signals:
+        synthesis = "No strong conviction from any quantitative signal. Size small or skip."
+    else:
+        synthesis = ". ".join(signals) + "."
+
+    return {
+        "funding_bias": funding["bias"],
+        "funding_detail": funding_msg,
+        "taker_bias": taker["bias"],
+        "taker_detail": taker_msg,
+        "oi_delta_24h_pct": oi_delta,
+        "oi_detail": oi_msg,
+        "synthesis": synthesis,
+    }
+
+
+def summarize_for_llm(df, sentiment_results, symbol, quantitative_data: dict | None = None):
     latest = df.iloc[-1]
     week = df.tail(168)
     month = df.tail(720)
@@ -132,6 +211,7 @@ def summarize_for_llm(df, sentiment_results, symbol):
                 else "Regime unknown — rely on strategy majority and be cautious."
             ),
         },
+        "quantitative": _build_quant_section(quantitative_data),
         "sentiment": {
             "recent_leaning": (
                 "negative" if negative_count > positive_count
