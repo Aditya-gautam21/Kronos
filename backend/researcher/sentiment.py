@@ -21,9 +21,9 @@ class SentimentAnalyzer:
         result = self.pipeline(text)[0]
         return {"label": result["label"], "score": round(result["score"], 4)}
 
-    def fetch_and_analyze(self, hours: int = 12) -> list[dict]:
+    def fetch_and_analyze(self, asset: str = "ETHUSDT", hours: int = 12) -> list[dict]:
         collector = NewsCollector()
-        news_items = collector.fetch_news(hours=hours)
+        news_items = collector.fetch_news(symbol=asset, hours=hours)
 
         results = []
         for item in news_items:
