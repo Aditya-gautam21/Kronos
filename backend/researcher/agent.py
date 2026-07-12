@@ -1,25 +1,26 @@
 from concurrent.futures import ThreadPoolExecutor
-from backend.local_llm import get_llm
 from backend.researcher.indicators import TechnicalIndicators
 from backend.researcher.sentiment import SentimentAnalyzer
 from backend.researcher.summary import summarize_for_llm
+from backend.researcher.binance import BINANCE
 from backend.utils.prompts import Prompts
 from backend.deepseek_llm import get_deepseek_llm
 from backend.state import add_log
 
 class ResearchAgent:
     def __init__(self):
-        get_deepseek_llm()
+        pass
 
-    def research(self):
+    def research(self, symbol):
         with ThreadPoolExecutor(max_workers=2) as executor:
-            tech_future = executor.submit(TechnicalIndicators().ohlcv_indicators_combined)
-            sentiment_future = executor.submit(SentimentAnalyzer().fetch_and_analyze, hours=24)
+            tech_future = executor.submit(TechnicalIndicators().ohlcv_indicators_combined, symbol)
+            sentiment_future = executor.submit(SentimentAnalyzer().fetch_and_analyze, symbol, hours=24)
 
         technical_data = tech_future.result()
         sentiment_data = sentiment_future.result()
+        quant_data = BINANCE().quantitative_data(symbol)
 
-        summary = summarize_for_llm(df=technical_data, sentiment_results=sentiment_data)
+        summary = summarize_for_llm(df=technical_data, sentiment_results=sentiment_data, symbol=symbol, quantitative_data=quant_data)
 
         prompt = Prompts.research_prompt(summary, technical_data)
 
