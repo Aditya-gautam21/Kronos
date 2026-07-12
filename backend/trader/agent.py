@@ -11,6 +11,7 @@ from binance.exceptions import BinanceAPIException
 from backend.quant.agent import QuantAgent
 from backend.database.supabase import Database
 from backend.state import load_state, save_state, add_log
+from backend.orchestrator.scheduler import TradeOrchestration
 
 load_dotenv()
 router = APIRouter()
@@ -170,24 +171,15 @@ async def logs():
     state = load_state()
     return state["logs"]
 
-@router.post("/save-data")
-async def save_data():
+@router.post("/start-bot")
+async def start_bot():
+    orchestrator = TradeOrchestration()
     try:
-        result = await asyncio.to_thread(QuantAgent().execute)
-        db = Database(result)
-
-        if result['status'] == "executed":
-            await db.trades()
-            await db.trade_raw_data()
-            await db.trade_results()
-
-            add_log(agent="Trader", message="Trade executed")
-            return {'status': 'ok', 'result': result}
+        orchestrator.start_scheduler()
+        add_log(agent="Trader", message="Trade executed")
         
-        if result['status'] == 'skipped':
-            add_log(agent="Trader", message="Trade skipped")
-            return {'status': 'ok', 'reason': 'skipped trade'}
+        return {'status': 'ok', 'result': 'Scheduler running'}
+    
     except Exception as e:
         add_log(agent="Trader", message=e, log_type="error")
         return {'status': 'error', 'reason': str(e)}
-
