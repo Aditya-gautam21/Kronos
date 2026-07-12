@@ -30,9 +30,9 @@ class TechnicalIndicators:
 
         return indicators
     
-    def ohlcv_indicators_combined(self):
+    def ohlcv_indicators_combined(self, symbol):
         bi = BINANCE()
-        data = bi.load_data()
+        data = bi.load_data(symbol)
 
         indicators = self.calculate_indicators(data)
 
