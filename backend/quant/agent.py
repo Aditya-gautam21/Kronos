@@ -1,6 +1,6 @@
 from backend.utils.extract_json import extract_json
 from backend.researcher.agent import ResearchAgent
-from backend.local_llm import get_llm
+from backend.deepseek_llm import get_deepseek_llm
 from backend.quant.kelly import kelly_position_size
 from backend.quant.orders import Order
 from binance.exceptions import BinanceAPIException
@@ -9,7 +9,6 @@ from backend.state import add_log
 
 class QuantAgent:
     def __init__(self):
-        get_llm()
         self.order = Order()
 
     def kelly_sizing(self, trade):
@@ -23,24 +22,21 @@ class QuantAgent:
         
         return sizing
         
-    def generate_trade(self) -> tuple[dict, dict]:
-        """Run research pipeline and return trade-ready JSON."""
+    def generate_trade(self, symbol) -> tuple[dict, dict]:
         researcher = ResearchAgent()
-        research_output = researcher.research()
+        research_output = researcher.research(symbol)
         trade = extract_json(research_output)
 
         position_size = self.kelly_sizing(trade)
         return trade, position_size
     
-    def execute(self) -> dict:
-        trade, position_size = self.generate_trade()
+    def execute(self, symbol) -> dict:
+        trade, position_size = self.generate_trade(symbol)
 
         if not trade or not trade.get("edge_found"):
             reason = (trade or {}).get("hypothesis", "No edge found")
             print(f"SKIP: {reason}")
             return {"status": "skipped", "reason": reason}
-
-        symbol = trade.get("symbol")
 
         balance = self.order.get_balance()
         print(f"Balance: ${balance:.2f}")
@@ -51,7 +47,7 @@ class QuantAgent:
         result = {"status": "executed", "initial_trade_info": trade, "position_size": position_size, "orders": {}}
 
         try:
-            entry = self.order.place_entry(symbol=symbol, direction=trade.get("direction"), quantity=qty)
+            entry = self.order.place_entry(symbol=symbol, direction=trade["direction"], quantity=qty)
             result["orders"]["entry"] = entry
             print(f"ENTRY placed: {entry.get('orderId', 'OK')}")
         except BinanceAPIException as e:
@@ -78,11 +74,3 @@ class QuantAgent:
         print("DONE — check testnet.binancefuture.com")
         add_log(agent="Quant", message=result, log_type="quant_output")
         return result
-            
-if __name__ == '__main__':
-    trade = QuantAgent().execute()
-    db = Database(trade)
-
-    db.trades()
-    db.trade_raw_data()
-    print("SUCCESSFUL")
