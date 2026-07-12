@@ -9,7 +9,6 @@ from backend.researcher.binance import BINANCE
 class TradeOrchestration:
     def __init__(self):
         self.scheduler = AsyncIOScheduler()
-        self._running = False
         self._maximum_trades = 7
         self._open_trades = 0
         self.db = Database()
@@ -18,10 +17,6 @@ class TradeOrchestration:
 
     async def place_trades(self):
         gainers = self.binance.get_top_gainers()
-        self.state = load_state()
-
-        if not self.state["is_running"]:
-            return
 
         if self._open_trades >= self._maximum_trades:
             return
@@ -31,21 +26,21 @@ class TradeOrchestration:
 
             if symbol not in self.open_trades_symbol:
                 try:
-                    trade = await asyncio.to_thread(QuantAgent().execute)
+                    trade = await asyncio.to_thread(QuantAgent().execute, symbol)
 
                     if trade["status"] == "executed":
-                        await self.db.trades()
-                        await self.db.trade_raw_data()
+                        trade_id = await self.db.trades(trade)
+                        await self.db.trade_raw_data(trade, trade_id)
 
                         self.open_trades_symbol.append(symbol)
                         self._open_trades += 1
 
                         add_log(agent="Quant", message=f"{symbol}: Trade executed")
                 except Exception as e:
-                    raise
+                    print(e)
     
     async def close_trades(self):
-        for symbol in self.open_trades_symbol:
+        for symbol in list(self.open_trades_symbol):
             result = await self.db.trade_closed(symbol)
 
             if result:
