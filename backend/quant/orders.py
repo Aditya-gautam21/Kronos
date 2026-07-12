@@ -23,18 +23,18 @@ class Order:
     def cancel_all_orders(self, symbol: str):
         try:
             orders = self.client.futures_get_open_orders(symbol=symbol)
-            for o in orders:
-                self.client.futures_cancel_order(symbol=symbol, orderId=o["orderId"])
+            for order in orders:
+                self.client.futures_cancel_order(symbol=symbol, orderId=order["orderId"])
             if orders:
                 print(f"  Cancelled {len(orders)} existing open order(s)")
         except BinanceAPIException as e:
-            print(f"  [WARN] Cancel orders failed: {e}")
+            print(f"[WARN] Cancel orders failed: {e}")
 
     def set_leverage(self, symbol: str, leverage: int):
         try:
             self.client.futures_change_leverage(symbol=symbol, leverage=leverage)
         except BinanceAPIException as e:
-            print(f"  [WARN] Leverage: {e}")
+            print(f"[WARN] Leverage: {e}")
 
     def place_entry(self, symbol: str, direction: str, quantity: float) -> dict:
         side = "SELL" if direction == "short" else "BUY"
@@ -70,5 +70,4 @@ class Order:
             workingType="MARK_PRICE",
             priceProtect="TRUE",
         )
-    
     
