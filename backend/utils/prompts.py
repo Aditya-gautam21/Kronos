@@ -27,6 +27,13 @@ Analyze the market data below and output a trade plan the Trade Executor can dir
 
 The `regime` field above is critical — read it first. {regime_implication}
 
+## Quantitative Sentiment (Binance Futures)
+If the `quantitative` section is present, these are real-money on-chain signals:
+- **funding_bias**: "bullish_overheating" = longs crowded, reversal risk. "bearish_short_crowded" = shorts crowded, squeeze risk. "neutral" = no signal.
+- **taker_bias**: "aggressive_buyers" or "aggressive_sellers" = real-money conviction via market orders. This is the strongest directional signal.
+- **oi_delta_24h_pct**: Rising OI = new capital entering (confirmed trend). Falling OI = capital leaving (weakening trend).
+- **synthesis**: Pre-computed summary. Use this to confirm or overrule your technical read. If funding says overheated and taker says aggressive sellers, trust the taker divergence — it's a stronger signal than the indicator.
+
 ## Strategy Signals
 {json.dumps(signal_strategies, indent=2)}
 Majority direction: **{majority}**
@@ -77,5 +84,5 @@ Binance futures market order fee is 0.05%. Account for this in your RR calculati
 
 ## Rules
 - direction MUST match the logic. RSI oversold + near BB lower = long. RSI overbought + near BB upper = short. MACD < 0 bearish, > 0 bullish.
-- hypothesis MUST synthesize 2+ data sources AND mention the regime.
+- hypothesis MUST synthesize 2+ data sources AND mention the regime. If `quantitative` data is present, you MUST include it as one of your sources — it is real-money conviction, not an opinion.
 - Output ONLY the JSON inside a ```json code block. No other text."""
