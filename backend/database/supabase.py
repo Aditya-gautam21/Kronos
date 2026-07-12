@@ -1,9 +1,10 @@
-import os 
+import os
 from dotenv import load_dotenv
 import uuid
 from datetime import datetime, timezone
 from supabase import create_async_client
-from backend.quant.executed_trades import ExecutedTrades
+from backend.quant.trade_data import ExecutedTrades
+import asyncio
 
 load_dotenv()
 _client = None
@@ -17,49 +18,72 @@ async def get_client():
         )
     return _client
 
-class Database:
-    def __init__(self, trade_data: dict):
-        self.trade_data = trade_data
 
-    async def trades(self):
-        self.trade_id = str(uuid.uuid4())
+class Database:
+    async def _ensure_client(self):
+        if not hasattr(self, '_client'):
+            self._client = await get_client()
+        return self._client
+
+    async def trades(self, trade_data: dict):
+        client = await self._ensure_client()
+        trade_id = str(uuid.uuid4())
 
         trade = {
-            'trade_id': self.trade_id,
-            'symbol': self.trade_data['initial_trade_info']['symbol'],
-            'direction': self.trade_data['initial_trade_info']['direction'],
-            'confidence': self.trade_data['initial_trade_info']['confidence'],
-            'entry_order_id': self.trade_data['orders']['entry']['orderId'],
-            'entry_price': self.trade_data['initial_trade_info']['entry_price'],
-            'quantity': self.trade_data['position_size']['margin_usdt'],
-            'leverage': self.trade_data['position_size']['leverage'],
-            'sl_price': self.trade_data['initial_trade_info']['stop_loss'],
-            'sl_order_id': self.trade_data['orders']['stop_loss']['algoId'],
-            'tp_price': self.trade_data['initial_trade_info']['take_profit'],
-            'tp_order_id': self.trade_data['orders']['take_profit']['algoId'],
+            'trade_id': trade_id,
+            'symbol': trade_data['initial_trade_info']['symbol'],
+            'direction': trade_data['initial_trade_info']['direction'],
+            'confidence': trade_data['initial_trade_info']['confidence'],
+            'entry_order_id': trade_data['orders']['entry']['orderId'],
+            'entry_price': trade_data['initial_trade_info']['entry_price'],
+            'quantity': trade_data['position_size']['margin_usdt'],
+            'leverage': trade_data['position_size']['leverage'],
+            'sl_price': trade_data['initial_trade_info']['stop_loss'],
+            'sl_order_id': trade_data['orders']['stop_loss']['algoId'],
+            'tp_price': trade_data['initial_trade_info']['take_profit'],
+            'tp_order_id': trade_data['orders']['take_profit']['algoId'],
             'opened_at': datetime.now(timezone.utc).isoformat()
         }
 
-        client = await get_client()
-        return await client.table("trades").insert(trade).execute()
+        await client.table("trades").insert(trade).execute()
+        return trade_id
 
-    async def trade_raw_data(self):
+    async def trade_raw_data(self, trade_data: dict, trade_id: str):
+        client = await self._ensure_client()
         raw_data = {
-            'trade_id': self.trade_id,
-            'llm_output': self.trade_data,
+            'trade_id': trade_id,
+            'llm_output': trade_data,
             'recorded_at': datetime.now(timezone.utc).isoformat()
         }
-
-        client = await get_client()
         return await client.table('trade_raw_data').insert(raw_data).execute()
 
-    async def trade_results(self):
-        executed = await ExecutedTrades().executed_trade_data()
-        if executed is None:
-            return None  # no closed trades yet — nothing to record
+    async def trade_query(self, symbol):
+        client = await self._ensure_client()
+        open_trades = (await client.table('trades')
+                       .select('entry_order_id, sl_order_id, tp_order_id, trade_id')
+                       .eq('symbol', symbol)
+                       .execute()).data
 
+        if not open_trades:
+            return None
+
+        row = open_trades[0]
+        return row['sl_order_id'], row['tp_order_id'], row['trade_id'], row['entry_order_id']
+
+    async def trade_closed(self, symbol):
+        ids = await self.trade_query(symbol)
+        if ids is None:
+            return False
+
+        sl_id, tp_id, trade_id, orderId = ids
+        executed = await ExecutedTrades().check_orders(sl_id, tp_id, trade_id, orderId, symbol)
+
+        if executed is None:
+            return False
+
+        client = await self._ensure_client()
         results = {
-            'trade_id': self.trade_id,
+            'trade_id': executed['trade_id'],
             'exit_order_id': None,
             'exit_price': executed['trade']['price'],
             'exit_reason': executed['exit_reason'],
@@ -72,5 +96,6 @@ class Database:
             'recorded_at': datetime.now(timezone.utc).isoformat()
         }
 
-        client = await get_client()
-        return await client.table("trade_results").insert(results).execute()
+        await client.table('trades').update({'status': 'CLOSED'}).eq('trade_id', executed['trade_id']).execute()
+        await client.table("trade_results").insert(results).execute()
+        return True
