@@ -26,9 +26,16 @@ class Order:
             for order in orders:
                 self.client.futures_cancel_order(symbol=symbol, orderId=order["orderId"])
             if orders:
-                print(f"  Cancelled {len(orders)} existing open order(s)")
+                print(f"  Cancelled {len(orders)} regular open order(s)")
+
+            algo_orders = self.client.futures_get_open_algo_orders(symbol=symbol)
+            for algo in algo_orders:
+                self.client.futures_cancel_algo_order(symbol=symbol, algoId=algo["algoId"])
+                print(f"  Cancelled algo order {algo['algoId']} ({algo.get('orderType', algo.get('type', '?'))})")
         except BinanceAPIException as e:
             print(f"[WARN] Cancel orders failed: {e}")
+        except Exception:
+            pass
 
     def set_leverage(self, symbol: str, leverage: int):
         try:
@@ -38,6 +45,15 @@ class Order:
 
     def place_entry(self, symbol: str, direction: str, quantity: float) -> dict:
         side = "SELL" if direction == "short" else "BUY"
+        try:
+            info = self.client.futures_exchange_info()
+            symbol_info = next((s for s in info['symbols'] if s['symbol'] == symbol), None)
+            if symbol_info:
+                precision = int(symbol_info['quantityPrecision'])
+                quantity = round(quantity, precision)
+        except Exception:
+            quantity = round(quantity, 3)
+
         return self.client.futures_create_order(
             symbol=symbol,
             side=side,
@@ -47,11 +63,23 @@ class Order:
 
     def place_sl(self, symbol: str, direction: str, stop_price: float, quantity: float) -> dict:
         side = "BUY" if direction == "short" else "SELL"
+        try:
+            info = self.client.futures_exchange_info()
+            symbol_info = next((s for s in info['symbols'] if s['symbol'] == symbol), None)
+            if symbol_info:
+                qty_precision = int(symbol_info['quantityPrecision'])
+                price_precision = int(symbol_info['pricePrecision'])
+                quantity = round(quantity, qty_precision)
+                stop_price = round(stop_price, price_precision)
+        except Exception:
+            quantity = round(quantity, 3)
+            stop_price = round(stop_price, 2)
+
         return self.client.futures_create_order(
             symbol=symbol,
             side=side,
             type="STOP_MARKET",
-            stopPrice=round(stop_price, 2),
+            stopPrice=stop_price,
             quantity=quantity,
             reduceOnly=True,
             workingType="MARK_PRICE",
@@ -60,11 +88,23 @@ class Order:
 
     def place_tp(self, symbol: str, direction: str, tp_price: float, quantity: float) -> dict:
         side = "BUY" if direction == "short" else "SELL"
+        try:
+            info = self.client.futures_exchange_info()
+            symbol_info = next((s for s in info['symbols'] if s['symbol'] == symbol), None)
+            if symbol_info:
+                qty_precision = int(symbol_info['quantityPrecision'])
+                price_precision = int(symbol_info['pricePrecision'])
+                quantity = round(quantity, qty_precision)
+                tp_price = round(tp_price, price_precision)
+        except Exception:
+            quantity = round(quantity, 3)
+            tp_price = round(tp_price, 2)
+
         return self.client.futures_create_order(
             symbol=symbol,
             side=side,
             type="TAKE_PROFIT_MARKET",
-            stopPrice=round(tp_price, 2),
+            stopPrice=tp_price,
             quantity=quantity,
             reduceOnly=True,
             workingType="MARK_PRICE",
