@@ -66,10 +66,11 @@ Output ONLY a JSON object inside a ```json fence. No other text.
 
 ## Price Rules
 - `entry_price`: current market price (use `close` from the data).
-- `stop_loss`: invalidation point. SHORT: above entry. LONG: below entry. Size it using ATR — 1.0x–2.0x ATR is reasonable. Current ATR is **{atr}**, volatility is **{volatility}**. Do not set SL tighter than 0.5x ATR — a normal 1h candle wicks that far.
-- `take_profit`: target price. SHORT: below entry. LONG: above entry.
-- `risk_reward_ratio`: abs(tp - entry) / abs(sl - entry). Must be >= 1.5 unless confidence is "high". 2.0+ preferred.
+- `stop_loss`: invalidation point. SHORT: above entry. LONG: below entry. Set SL 15–20% away from the entry price. This is fixed — do NOT widen it. Tight SL = small, consistent losses instead of blown accounts.
+- `take_profit`: target price. SHORT: below entry. LONG: above entry. Set TP 20–30% away from the entry price. This is a fixed range — do NOT chase wider targets. Consistent 20-30% wins compound faster than occasional home runs.
+- `risk_reward_ratio`: abs(tp - entry) / abs(sl - entry). Must be >= 1.5.
 - `leverage`: integer 1-10. See leverage rules below.
+- **IMPORTANT**: Do NOT set TP beyond 30% or SL beyond 20% of entry. The bot's edge is consistency, not chasing moonshots. A 25% profit taken consistently beats a 78% peak that reverses.
 
 ## Confidence Rules
 - "high": 2+ independent signals agree AND direction aligns with regime. Use only for clear, multi-signal setups.
