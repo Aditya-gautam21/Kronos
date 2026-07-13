@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
 
@@ -25,14 +25,22 @@ def _get_binance_client():
     )
 
 
+_orchestrator = None
+
+
 @router.get("/bot-status")
 async def bot_status():
+    global _orchestrator
     state = load_state()
+    is_scheduler_running = _orchestrator is not None and _orchestrator.scheduler.running
+    if state.get("is_running") != is_scheduler_running:
+        state["is_running"] = is_scheduler_running
+        save_state(state)
     return {
-        "is_running": state["is_running"],
-        "last_execution": state["last_execution"],
-        "last_result": state["last_result"],
-        "total_executions": state["bot_runs"],
+        "is_running": state.get("is_running", False),
+        "last_execution": state.get("last_execution"),
+        "last_result": state.get("last_result"),
+        "total_executions": state.get("bot_runs", 0),
     }
 
 
@@ -127,6 +135,8 @@ async def allocation():
         client = _get_binance_client()
         account = client.futures_account()
         total_balance = float(account.get("totalWalletBalance", 0))
+        total_unrealized_pnl = float(account.get("totalUnrealizedProfit", 0))
+        total_margin_balance = float(account.get("totalMarginBalance", 0))
         raw_positions = client.futures_position_information()
 
         total_position_value = sum(
@@ -156,12 +166,16 @@ async def allocation():
         return {
             "exposure_pct": round(exposed_pct, 1),
             "total_balance": round(total_balance, 2),
+            "total_unrealized_pnl": round(total_unrealized_pnl, 2),
+            "total_margin_balance": round(total_margin_balance, 2),
             "allocations": allocations,
         }
     except Exception:
         return {
             "exposure_pct": 0,
             "total_balance": 0,
+            "total_unrealized_pnl": 0,
+            "total_margin_balance": 0,
             "allocations": [{"name": "Cash (Reserve)", "value": 100, "color": "#333333"}],
         }
 
@@ -173,13 +187,49 @@ async def logs():
 
 @router.post("/start-bot")
 async def start_bot():
+    global _orchestrator
+    if _orchestrator is not None and _orchestrator.scheduler.running:
+        return {'status': 'ok', 'result': 'Scheduler already running'}
+
+    _orchestrator = TradeOrchestration()
+    try:
+        _orchestrator.start_scheduler()
+        state = load_state()
+        state["is_running"] = True
+        save_state(state)
+        add_log(agent="SYSTEM", message="Autonomous bot scheduler started.")
+        return {'status': 'ok', 'result': 'Scheduler running'}
+    except Exception as e:
+        add_log(agent="SYSTEM", message=f"Failed to start scheduler: {str(e)}", log_type="error")
+        return {'status': 'error', 'reason': str(e)}
+
+
+@router.post("/stop-bot")
+async def stop_bot():
+    global _orchestrator
+    if _orchestrator is None or not _orchestrator.scheduler.running:
+        return {'status': 'ok', 'result': 'Scheduler not running'}
+
+    try:
+        _orchestrator.scheduler.shutdown(wait=False)
+        _orchestrator = None
+        state = load_state()
+        state["is_running"] = False
+        save_state(state)
+        add_log(agent="SYSTEM", message="Autonomous bot scheduler stopped.")
+        return {'status': 'ok', 'result': 'Scheduler stopped'}
+    except Exception as e:
+        add_log(agent="SYSTEM", message=f"Failed to stop scheduler: {str(e)}", log_type="error")
+        return {'status': 'error', 'reason': str(e)}
+
+
+@router.post("/save-data")
+async def save_data(background_tasks: BackgroundTasks):
     orchestrator = TradeOrchestration()
     try:
-        orchestrator.start_scheduler()
-        add_log(agent="Trader", message="Trade executed")
-        
-        return {'status': 'ok', 'result': 'Scheduler running'}
-    
+        add_log(agent="SYSTEM", message="Manual pipeline run triggered.")
+        background_tasks.add_task(orchestrator._pipeline_wrapper)
+        return {'status': 'ok', 'result': 'Pipeline execution started'}
     except Exception as e:
-        add_log(agent="Trader", message=e, log_type="error")
+        add_log(agent="SYSTEM", message=f"Manual pipeline run failed: {str(e)}", log_type="error")
         return {'status': 'error', 'reason': str(e)}
