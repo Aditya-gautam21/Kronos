@@ -1,45 +1,50 @@
+"use client";
+
+import { AnimatePresence, motion } from "framer-motion";
 import { Sidebar } from "@/components/Sidebar";
-import { MetricsRibbon } from "@/components/MetricsRibbon";
-import { StrategyPipeline } from "@/components/StrategyPipeline";
-import { ApprovalQueue } from "@/components/ApprovalQueue";
-import { PortfolioAllocation } from "@/components/PortfolioAllocation";
+import { DashboardHome } from "@/components/DashboardHome";
 import { LiveTrades } from "@/components/LiveTrades";
-import { AgentLog } from "@/components/AgentLog";
+import { PortfolioAllocation } from "@/components/PortfolioAllocation";
+import { TradeHistoryTable } from "@/components/TradeHistoryTable";
+import { AgentOperations } from "@/components/AgentOperations";
+import { useDashboard } from "@/lib/dashboard-context";
 
 export default function Dashboard() {
-  return (
-    <div className="flex h-screen w-full bg-background overflow-hidden text-foreground">
-      <Sidebar />
-      
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {/* Top Gradient Overlay for depth */}
-        <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-claude-coral/3 to-transparent pointer-events-none" />
-        
-        <div id="dashboard" className="flex-1 overflow-y-auto p-6 z-10 custom-scrollbar scroll-smooth">
-          <MetricsRibbon />
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div id="strategy-pipeline" className="lg:col-span-2 h-[320px]">
-              <StrategyPipeline />
-            </div>
-            <div id="approval-queue" className="h-[320px]">
-              <ApprovalQueue />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-            <div id="live-trades" className="lg:col-span-3">
-              <LiveTrades />
-            </div>
-            <div id="kelly-allocation" className="h-[360px]">
-              <PortfolioAllocation />
-            </div>
-          </div>
+  const { activeView } = useDashboard();
 
-          <div id="agent-logs" className="h-[250px]">
-            <AgentLog />
-          </div>
-        </div>
+  return (
+    <div className="flex h-screen w-full bg-bg-primary overflow-hidden">
+      <Sidebar />
+
+      <main className="flex-1 flex flex-col h-full overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeView}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="flex-1 flex flex-col h-full overflow-hidden"
+          >
+            {activeView === "overview" && <DashboardHome />}
+            {activeView === "positions" && (
+              <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
+                <LiveTrades />
+              </div>
+            )}
+            {activeView === "history" && (
+              <div className="flex-1 p-6 overflow-y-auto custom-scrollbar grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <TradeHistoryTable />
+                </div>
+                <div>
+                  <PortfolioAllocation />
+                </div>
+              </div>
+            )}
+            {activeView === "operations" && <AgentOperations />}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );

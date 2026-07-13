@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "NODE_OPTIONS='--max-old-space-size=4096' next dev",
-    "dev:light": "NODE_OPTIONS='--max-old-space-size=2048' next dev --turbo",
+    "dev:light": "NODE_OPTIONS='--max-old-space-size=2048' next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --hostname 0.0.0.0",
     "lint": "eslint"
   },
   "dependencies": {

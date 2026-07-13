@@ -13,20 +13,16 @@ export type LogEntry = {
   type: "info" | "success" | "warning" | "error";
 };
 
-export type QueueItem = {
-  id: string;
+export type Position = {
   symbol: string;
   side: string;
   size: number;
   entry_price: number;
-  stop_loss: number;
-  take_profit: number;
-  confidence: string;
-  hypothesis: string;
-  riskScore: number;
-  sharpe: string;
-  drawdown: string;
-  flags: number;
+  mark_price: number;
+  pnl: number;
+  pnl_pct: string;
+  leverage: number;
+  liquidation_price: number;
 };
 
 export type Trade = {
@@ -35,11 +31,9 @@ export type Trade = {
   side: string;
   size: number;
   entry_price: number;
-  mark_price: number;
   pnl: number;
-  pnl_pct: string;
-  status?: string;
-  timestamp?: string;
+  status: string;
+  timestamp: string;
 };
 
 export type AllocationItem = {
@@ -65,13 +59,14 @@ type DashboardData = {
   totalExecutions: number;
 
   // Bot status
-  botStatus: { message: string; type: "success" | "error" | null };
+  isRunning: boolean;
+  botStatus: { is_running: boolean; last_execution: string | null; last_result: string | null };
 
-  // Trades
+  // Completed Trade History
   trades: Trade[];
 
-  // Approval queue (active trades)
-  queue: QueueItem[];
+  // Live Binance Positions
+  positions: Position[];
 
   // Pipeline
   pipeline: PipelineColumn[];
@@ -80,6 +75,7 @@ type DashboardData = {
   allocation: AllocationItem[];
   exposurePct: number;
   totalBalance: number;
+  totalUnrealizedPnl: number;
 
   // Logs
   logs: LogEntry[];
@@ -94,13 +90,13 @@ const DEFAULT_LOGS: LogEntry[] = [
 ];
 
 const DEFAULT_ALLOCATION: AllocationItem[] = [
-  { name: "Cash (Reserve)", value: 100, color: "#333330" },
+  { name: "Cash (Reserve)", value: 100, color: "#1E1D24" },
 ];
 
 const DEFAULT_PIPELINE: PipelineColumn[] = [
-  { title: "RESEARCH", color: "border-claude-blue", bg: "bg-claude-blue/8", text: "text-claude-blue", items: [] },
-  { title: "BACKTEST", color: "border-claude-coral", bg: "bg-claude-coral/8", text: "text-claude-coral", items: [] },
-  { title: "RISK REVIEW", color: "border-claude-green", bg: "bg-claude-green/8", text: "text-claude-green", items: [] },
+  { title: "RESEARCH", color: "border-color-green", bg: "bg-color-green/8", text: "text-color-green", items: [] },
+  { title: "BACKTEST", color: "border-accent-purple", bg: "bg-accent-purple/8", text: "text-accent-purple", items: [] },
+  { title: "RISK REVIEW", color: "border-accent-orange", bg: "bg-accent-orange/8", text: "text-accent-orange", items: [] },
 ];
 
 const INITIAL_DATA: DashboardData = {
@@ -109,13 +105,15 @@ const INITIAL_DATA: DashboardData = {
   activeStrategies: 0,
   drawdown: 0,
   totalExecutions: 0,
-  botStatus: { message: "", type: null },
+  isRunning: false,
+  botStatus: { is_running: false, last_execution: null, last_result: null },
   trades: [],
-  queue: [],
+  positions: [],
   pipeline: DEFAULT_PIPELINE,
   allocation: DEFAULT_ALLOCATION,
   exposurePct: 0,
   totalBalance: 0,
+  totalUnrealizedPnl: 0,
   logs: DEFAULT_LOGS,
   lastUpdated: null,
   isLoading: true,
@@ -123,29 +121,8 @@ const INITIAL_DATA: DashboardData = {
 
 // ── Helpers to map raw API data ────────────────────────────────────────────
 
-function mapQueue(history: any[]): QueueItem[] {
-  return history
-    .filter((t: any) => t.status === "active")
-    .map((t: any) => ({
-      id: t.id,
-      symbol: t.symbol,
-      side: t.side,
-      size: t.size,
-      entry_price: t.entry_price,
-      stop_loss: t.stop_loss,
-      take_profit: t.take_profit,
-      confidence: t.confidence || "medium",
-      hypothesis: t.hypothesis || "Trade placed by autonomous bot",
-      riskScore: t.confidence === "high" ? 85 : t.confidence === "medium" ? 65 : 45,
-      sharpe: "1.8",
-      drawdown: "-2.1%",
-      flags: t.confidence === "low" ? 1 : 0,
-    }));
-}
-
-function mapTrades(positions: any[], history: any[]): Trade[] {
-  const active: Trade[] = positions.map((p: any) => ({
-    id: p.symbol,
+function mapPositions(positions: any[]): Position[] {
+  return (positions || []).map((p: any) => ({
     symbol: p.symbol,
     side: p.side,
     size: p.size,
@@ -153,38 +130,36 @@ function mapTrades(positions: any[], history: any[]): Trade[] {
     mark_price: p.mark_price,
     pnl: p.pnl,
     pnl_pct: p.pnl_pct,
-    status: "active",
-    timestamp: "now",
+    leverage: p.leverage ?? 20,
+    liquidation_price: p.liquidation_price ?? 0,
   }));
+}
 
-  const past: Trade[] = history
-    .filter((t: any) => t.status !== "active")
-    .map((t: any) => ({
-      id: t.id,
-      symbol: t.symbol,
-      side: t.side,
-      size: t.size,
-      entry_price: t.entry_price,
-      mark_price: t.entry_price,
-      pnl: t.pnl ?? 0,
-      pnl_pct: "0.00%",
-      status: t.status,
-      timestamp: t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : "--",
-    }));
-
-  return [...active, ...past];
+function mapTradeHistory(history: any[]): Trade[] {
+  return (history || []).map((t: any) => ({
+    id: t.id,
+    symbol: t.symbol,
+    side: t.side,
+    size: t.size,
+    entry_price: t.entry_price,
+    pnl: t.pnl ?? 0,
+    status: t.status,
+    timestamp: t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : "--",
+  }));
 }
 
 function mapAllocation(result: any): {
   allocation: AllocationItem[];
   exposurePct: number;
   totalBalance: number;
+  totalUnrealizedPnl: number;
 } {
   const ALLOCATION_COLORS: Record<string, string> = {
-    cash: "#333330",
-    "#333333": "#333330",
-    "#00f0ff": "#788c5d",
-    "#ff00ff": "#e0573e",
+    cash: "#1E1D24",
+    "cash (reserve)": "#1E1D24",
+    "#333333": "#1E1D24",
+    "#00f0ff": "#00F0FF",
+    "#ff00ff": "#7E66F5",
   };
 
   if (result?.allocations?.length > 0) {
@@ -195,23 +170,33 @@ function mapAllocation(result: any): {
       })),
       exposurePct: result.exposure_pct ?? 0,
       totalBalance: result.total_balance ?? 0,
+      totalUnrealizedPnl: result.total_unrealized_pnl ?? 0,
     };
   }
-  return { allocation: DEFAULT_ALLOCATION, exposurePct: 0, totalBalance: 0 };
+  return { allocation: DEFAULT_ALLOCATION, exposurePct: 0, totalBalance: 0, totalUnrealizedPnl: 0 };
 }
 
 function mapPipeline(data: any): PipelineColumn[] {
   if (!data) return DEFAULT_PIPELINE;
   return [
-    { title: "RESEARCH", color: "border-claude-blue", bg: "bg-claude-blue/8", text: "text-claude-blue", items: data.research || [] },
-    { title: "BACKTEST", color: "border-claude-coral", bg: "bg-claude-coral/8", text: "text-claude-coral", items: data.backtest || [] },
-    { title: "RISK REVIEW", color: "border-claude-green", bg: "bg-claude-green/8", text: "text-claude-green", items: data.risk_review || [] },
+    { title: "RESEARCH", color: "border-color-green", bg: "bg-color-green/8", text: "text-color-green", items: data.research || [] },
+    { title: "BACKTEST", color: "border-accent-purple", bg: "bg-accent-purple/8", text: "text-accent-purple", items: data.backtest || [] },
+    { title: "RISK REVIEW", color: "border-accent-orange", bg: "bg-accent-orange/8", text: "text-accent-orange", items: data.risk_review || [] },
   ];
 }
 
 // ── Context ────────────────────────────────────────────────────────────────
 
-const DashboardContext = createContext<DashboardData>(INITIAL_DATA);
+export type DashboardContextProps = DashboardData & {
+  activeView: string;
+  setActiveView: (view: string) => void;
+};
+
+const DashboardContext = createContext<DashboardContextProps>({
+  ...INITIAL_DATA,
+  activeView: "overview",
+  setActiveView: () => {},
+});
 const RefreshContext = createContext<() => Promise<void>>(async () => {});
 
 // ── Provider ───────────────────────────────────────────────────────────────
@@ -220,6 +205,7 @@ const POLL_INTERVAL_MS = 10_000; // Single 10s interval replaces 7 separate time
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<DashboardData>(INITIAL_DATA);
+  const [activeView, setActiveView] = useState<string>("overview");
   const mountedRef = useRef(true);
   const controllerRef = useRef<AbortController | null>(null);
 
@@ -251,9 +237,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         activeStrategies: m?.active_strategies ?? 0,
         drawdown: m?.drawdown ?? 0,
         totalExecutions: bs?.total_executions ?? 0,
-        botStatus: { message: "", type: null },
-        trades: mapTrades(positions || [], tradeHistory || []),
-        queue: mapQueue(tradeHistory || []),
+        isRunning: bs?.is_running ?? false,
+        botStatus: {
+          is_running: bs?.is_running ?? false,
+          last_execution: bs?.last_execution ?? null,
+          last_result: bs?.last_result ?? null,
+        },
+        trades: mapTradeHistory(tradeHistory || []),
+        positions: mapPositions(positions || []),
         pipeline: mapPipeline(pipe),
         ...mapAllocation(alloc),
         logs: Array.isArray(rawLogs) && rawLogs.length > 0 ? rawLogs : DEFAULT_LOGS,
@@ -281,7 +272,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   return (
-    <DashboardContext.Provider value={data}>
+    <DashboardContext.Provider value={{ ...data, activeView, setActiveView }}>
       <RefreshContext.Provider value={refresh}>
         {children}
       </RefreshContext.Provider>

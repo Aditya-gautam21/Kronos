@@ -1,44 +1,46 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useDashboard, type PipelineColumn } from "@/lib/dashboard-context";
+import { useDashboard } from "@/lib/dashboard-context";
+import { cn } from "@/lib/utils";
 
 export function StrategyPipeline() {
-  const { pipeline: columns } = useDashboard();
+  const { pipeline } = useDashboard();
 
   return (
-    <div className="bg-[#222220] border border-[#333330] rounded-xl p-5 flex flex-col h-full shadow-sm">
-      <h2 className="text-sm font-serif font-bold tracking-wide text-white mb-4">STRATEGY PIPELINE</h2>
+    <div className="card p-5 flex flex-col h-full">
+      <h2 className="text-sm font-semibold mb-4">Pipeline</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full min-h-0">
-        {columns.map((col: PipelineColumn, i: number) => (
-          <div key={i} className={`border-t-2 ${col.color} bg-[#1a1a19]/40 border-x border-b border-[#2c2c2a] rounded-b-lg p-3 flex flex-col h-full min-h-0`}>
-            <div className="flex justify-between items-center mb-3">
-              <span className={`text-[10px] font-bold tracking-wider ${col.text}`}>{col.title}</span>
-              <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${col.bg} ${col.text} font-bold`}>
+      <div className="grid grid-cols-3 gap-3 h-full min-h-0">
+        {pipeline.map((col) => (
+          <div key={col.title} className={cn("border-t-2 rounded-lg p-3 flex flex-col h-full min-h-0", col.color, col.bg)}>
+            <div className="flex items-center justify-between mb-2">
+              <span className={cn("text-[10px] font-semibold uppercase tracking-wider", col.text)}>{col.title}</span>
+              <span className={cn("text-[9px] font-mono font-medium px-1.5 py-0.5 rounded", col.bg, col.text)}>
                 {col.items.length}
               </span>
             </div>
 
-            <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-1">
+            <div className="space-y-1.5 flex-1 overflow-y-auto custom-scrollbar pr-1">
               <AnimatePresence mode="popLayout">
                 {col.items.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-[#7c7a72] font-mono italic text-[10px]">No active runs</div>
+                  <div className="h-full flex items-center justify-center text-text-tertiary text-[10px] italic">
+                    Awaiting run
+                  </div>
                 ) : (
-                  col.items.map((item, idx) => (
+                  col.items.map((item, i) => (
                     <motion.div
                       key={item.id}
-                      initial={{ opacity: 0, y: 4 }}
+                      initial={{ opacity: 0, y: 3 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ delay: Math.min(idx * 0.05, 0.3) }}
-                      className="bg-[#191918] border border-[#2c2c2a] rounded p-2.5 text-xs hover:border-[#444440] transition-colors duration-200 cursor-default shadow-sm"
+                      exit={{ opacity: 0, y: -3 }}
+                      transition={{ delay: Math.min(i * 0.04, 0.2) }}
+                      className="bg-bg-primary/60 border border-border-subtle rounded-lg p-2"
                     >
-                      <div className="flex justify-between mb-1">
-                        <span className="font-mono font-bold text-white">{item.id}</span>
-                        <span className="text-[9px] text-[#7c7a72]">{item.time}</span>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-[10px] text-text-tertiary font-mono">{item.time}</span>
                       </div>
-                      <p className="text-[#a5a39a] leading-relaxed truncate">{item.desc}</p>
+                      <p className="text-[10px] text-text-secondary leading-relaxed truncate">{item.desc}</p>
                     </motion.div>
                   ))
                 )}
