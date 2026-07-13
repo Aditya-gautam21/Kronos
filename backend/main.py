@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routes import trader
+from backend.trader import agent
 
 app = FastAPI()
 
@@ -12,4 +12,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(trader.router)
+app.include_router(agent.router)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000)
