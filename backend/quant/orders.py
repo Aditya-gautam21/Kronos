@@ -18,7 +18,7 @@ class Order:
         usdt = next((item for item in balances if item["asset"] == "USDT"), None)
         if not usdt:
             raise Exception("No USDT balance found on testnet")
-        return float(usdt["balance"])
+        return float(usdt["availableBalance"])
 
     def cancel_all_orders(self, symbol: str):
         try:
