@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from backend.utils.extract_json import extract_json
 from backend.researcher.agent import ResearchAgent
 from backend.deepseek_llm import get_deepseek_llm
@@ -6,7 +5,7 @@ from backend.quant.kelly import kelly_position_size
 from backend.quant.orders import Order
 from binance.exceptions import BinanceAPIException
 from backend.database.supabase import Database
-from backend.state import load_state, save_state, add_log
+from backend.state import load_state, save_state, add_log, now_ist
 
 class QuantAgent:
     def __init__(self):
@@ -33,8 +32,8 @@ class QuantAgent:
 
         state = load_state()
         backtest_item = {
-            "id": f"bt-{symbol}-{int(datetime.now(timezone.utc).timestamp())}",
-            "time": datetime.now(timezone.utc).strftime("%H:%M:%S"),
+            "id": f"bt-{symbol}-{int(now_ist().timestamp())}",
+            "time": now_ist().strftime("%H:%M:%S"),
             "desc": f"Calculating Kelly Criterion sizing for {symbol}."
         }
         state.setdefault("pipeline", {}).setdefault("backtest", []).append(backtest_item)
@@ -52,8 +51,8 @@ class QuantAgent:
 
         state = load_state()
         risk_item = {
-            "id": f"risk-{symbol}-{int(datetime.now(timezone.utc).timestamp())}",
-            "time": datetime.now(timezone.utc).strftime("%H:%M:%S"),
+            "id": f"risk-{symbol}-{int(now_ist().timestamp())}",
+            "time": now_ist().strftime("%H:%M:%S"),
             "desc": f"Validating risk limits for {symbol}: {trade.get('direction', 'UNKNOWN')} trade."
         }
         state.setdefault("pipeline", {}).setdefault("risk_review", []).append(risk_item)

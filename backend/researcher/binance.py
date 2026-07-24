@@ -14,6 +14,16 @@ class BINANCE:
             api_secret=os.getenv("BINANCE_TESTNET_SECRET"),
             testnet=True,
         )
+        self._testnet_symbols = None
+
+    def _get_testnet_symbols(self):
+        if self._testnet_symbols is None:
+            try:
+                info = self.testnet_client.futures_exchange_info()
+                self._testnet_symbols = {s["symbol"] for s in info["symbols"] if s["status"] == "TRADING"}
+            except Exception:
+                self._testnet_symbols = set()
+        return self._testnet_symbols
 
     def load_data(self, symbol):
         all_data = []
@@ -34,19 +44,20 @@ class BINANCE:
         return data
     
     def get_top_gainers(self, top_n: int = 10):
-        tickers = self.public_client.futures_ticker()  
-        
+        testnet_symbols = self._get_testnet_symbols()
+        tickers = self.public_client.futures_ticker()
+
         usdt_pairs = [
             t for t in tickers
-            if t["symbol"].endswith("USDT")
+            if t["symbol"].endswith("USDT") and t["symbol"] in testnet_symbols
         ]
-        
+
         sorted_gainers = sorted(
             usdt_pairs,
             key=lambda x: float(x["priceChangePercent"]),
             reverse=True
         )
-        
+
         return [
             {
                 "symbol": t["symbol"],

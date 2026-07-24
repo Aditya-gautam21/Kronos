@@ -144,7 +144,7 @@ function mapTradeHistory(history: any[]): Trade[] {
     entry_price: t.entry_price,
     pnl: t.pnl ?? 0,
     status: t.status,
-    timestamp: t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : "--",
+    timestamp: t.timestamp ? new Date(t.timestamp).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" }) : "--",
   }));
 }
 

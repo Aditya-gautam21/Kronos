@@ -1,7 +1,6 @@
 import os
 from dotenv import load_dotenv
 from langchain_deepseek import ChatDeepSeek
-from langchain_groq import ChatGroq
 
 load_dotenv()
 _deepseek_llm = None
@@ -25,6 +24,7 @@ def get_deepseek():
 def get_groq():
     global _groq_llm
     if _groq_llm is None:
+        from langchain_groq import ChatGroq
         _groq_llm = ChatGroq(
             model="llama-3.3-70b-versatile",
             api_key=os.getenv("GROQ_API_KEY"),

@@ -1,12 +1,11 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
 from backend.researcher.indicators import TechnicalIndicators
 from backend.researcher.sentiment import SentimentAnalyzer
 from backend.researcher.summary import summarize_for_llm
 from backend.researcher.binance import BINANCE
 from backend.utils.prompts import Prompts
 from backend.deepseek_llm import get_deepseek_llm
-from backend.state import load_state, save_state, add_log
+from backend.state import load_state, save_state, add_log, now_ist
 
 class ResearchAgent:
     def __init__(self):
@@ -15,8 +14,8 @@ class ResearchAgent:
     def research(self, symbol):
         state = load_state()
         research_item = {
-            "id": f"res-{symbol}-{int(datetime.now(timezone.utc).timestamp())}",
-            "time": datetime.now(timezone.utc).strftime("%H:%M:%S"),
+            "id": f"res-{symbol}-{int(now_ist().timestamp())}",
+            "time": now_ist().strftime("%H:%M:%S"),
             "desc": f"Analyzing indicators and sentiment for {symbol}."
         }
         state.setdefault("pipeline", {}).setdefault("research", []).append(research_item)

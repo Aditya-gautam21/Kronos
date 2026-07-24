@@ -2,9 +2,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import asyncio
 import traceback
 import uuid
-from datetime import datetime, timezone
 
-from backend.state import load_state, save_state, add_log
+from backend.state import load_state, save_state, add_log, now_ist
 from backend.quant.agent import QuantAgent
 from backend.database.supabase import Database
 from backend.researcher.binance import BINANCE
@@ -83,7 +82,7 @@ class TradeOrchestration:
     async def _pipeline_wrapper(self):
         state = load_state()
         state["bot_runs"] = state.get("bot_runs", 0) + 1
-        state["last_execution"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        state["last_execution"] = now_ist().strftime("%Y-%m-%d %H:%M:%S IST")
         save_state(state)
 
         add_log(agent="SYSTEM", message=f"Pipeline execution cycle #{state['bot_runs']} started.")
@@ -108,6 +107,6 @@ class TradeOrchestration:
             trigger="interval",
             minutes=15,
             id='trader_pipeline',
-            next_run_time=datetime.now(timezone.utc)
+            next_run_time=now_ist()
         )
         self.scheduler.start()

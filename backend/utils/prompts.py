@@ -64,13 +64,29 @@ Output ONLY a JSON object inside a ```json fence. No other text.
 }}
 ```
 
-## Price Rules
+## Price Rules — MANDATORY (The Margin ROI Rule)
 - `entry_price`: current market price (use `close` from the data).
-- `stop_loss`: invalidation point. SHORT: above entry. LONG: below entry. Set SL 15–20% away from the entry price. This is fixed — do NOT widen it. Tight SL = small, consistent losses instead of blown accounts.
-- `take_profit`: target price. SHORT: below entry. LONG: above entry. Set TP 20–30% away from the entry price. This is a fixed range — do NOT chase wider targets. Consistent 20-30% wins compound faster than occasional home runs.
-- `risk_reward_ratio`: abs(tp - entry) / abs(sl - entry). Must be >= 1.5.
+
+### How to calculate TP and SL (READ THIS FIRST)
+TP and SL are NOT percentages of the price. They are percentages of your **ROI on margin** (return on USDT invested). Leverage amplifies the price move, so a small price move = a big ROI.
+
+**The formula:**
+```
+price_move_pct = roi_pct / leverage
+```
+
+For example, with 5x leverage:
+- **25% ROI (target profit)**: price_move = 25 / 5 = **5%** → TP = entry × 1.05 (long) or × 0.95 (short)
+- **17% max loss**: price_move = 17 / 5 = **3.4%** → SL = entry × 0.966 (long) or × 1.034 (short)
+
+### The rules
+- **TP must produce 20–30% ROI on margin.** Use `price_move = 25 / leverage` as default. At 5x: TP ~5% from entry.
+- **SL must limit loss to 15–20% of margin.** Use `price_move = 17 / leverage` as default. At 5x: SL ~3.4% from entry.
+- Do NOT set wider targets. The bot's edge is consistent 25% ROI wins. 10 trades at 25% each beats one 78% peak that reverses.
+- `risk_reward_ratio`: naturally ~1.5 with these numbers. Keep it ≥ 1.5.
 - `leverage`: integer 1-10. See leverage rules below.
-- **IMPORTANT**: Do NOT set TP beyond 30% or SL beyond 20% of entry. The bot's edge is consistency, not chasing moonshots. A 25% profit taken consistently beats a 78% peak that reverses.
+- `risk_reward_ratio`: must be >= 1.5 (30/20 = 1.5, so you're already there if you follow the rule exactly).
+- `leverage`: integer 1-10. See leverage rules below.
 
 ## Confidence Rules
 - "high": 2+ independent signals agree AND direction aligns with regime. Use only for clear, multi-signal setups.

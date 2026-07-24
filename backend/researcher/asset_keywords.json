@@ -1,0 +1,33 @@
+{
+  "BTCUSDT": [
+    "bitcoin",
+    "btc",
+    "bitcoin etf",
+    "halving",
+    "satoshi"
+  ],
+  "ETHUSDT": [
+    "ethereum",
+    "eth",
+    "ether",
+    "vitalik",
+    "merge",
+    "layer 2",
+    "l2",
+    "arbitrum",
+    "optimism"
+  ],
+  "SOLUSDT": [
+    "solana",
+    "sol",
+    "phantom"
+  ],
+  "SXTUSDT": [
+    "sxt",
+    "sxtusdt"
+  ],
+  "TUSDT": [
+    "t",
+    "tusdt"
+  ]
+}
